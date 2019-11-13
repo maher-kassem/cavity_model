@@ -1,2 +1,4 @@
 # Protein_Gap_Model_Demo
-A demo of a structure based amino acid classifier using 3D convolutions and how the likelihoods are related to changes in protein stability
+This is  demo of a protein structure based amino acid classifier using 3D convolutions. The central idea is to look at the environment of a query amino acid, remove the atoms the query amino acid and have the classifier attempt to predict the label of the missing. 
+
+
