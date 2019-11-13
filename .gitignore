@@ -1,0 +1,4 @@
+*.pdb
+*.npz
+/reduce/
+.ipynb_checkpoints/
