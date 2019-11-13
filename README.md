@@ -6,7 +6,7 @@ Given a well-trained classifier, the accuracy on a homology reduced test should 
 
 ## Documentation
 
-### Step by step guide to get this running yourself (on a unix machine with miniconda installed)
+### Step by step guide to get this running yourself (on a unix machine with Miniconda installed)
 0. Clone the repository and change directory  
 `git clone https://github.com/mahermkassem/Protein_Gap_Model_Demo.git`  
 `cd Protein_Gap_Model_Demo/`
