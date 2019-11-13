@@ -9,7 +9,7 @@ Given a well-trained classifier, the accuracy on a homology reduced test should 
 ### Step by step guide to get this running yourself (on a unix machine with miniconda installed)
 0. Clone the repository and change directory  
 `git clone https://github.com/mahermkassem/Protein_Gap_Model_Demo.git`  
-`cd Protein_Gap_Model_Demo`
+`cd Protein_Gap_Model_Demo/`
 
 1. Install the conda environment in the `conda_env/` directory  
 `conda env create -f conda_env/py3.6-gapmodeldemo.yml`  
@@ -17,11 +17,11 @@ Given a well-trained classifier, the accuracy on a homology reduced test should 
 
 2. Install reduce. This program is used by my parser to add missing hydrogens to the proteins  
 `git clone https://github.com/rlabduke/reduce.git`  
-`cd reduce`  
+`cd reduce/`  
 `make; make install` # This should give an error but provide the reduce executable in this directory
 
 3. Download and Parse the data using my bash script. It downloads the PDBs listed in `data/transfer_learning_data/pdbids_250.txt` and parses them.  
-`cd ../data`  
+`cd ../data/`  
 `./download_and_process_data.sh`
 
 4. Once it has downloaded, cleaned and parsed all the PDBs, you should be able to run all the code in the `prot_gap_model.ipynb` notebook.
