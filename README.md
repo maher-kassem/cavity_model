@@ -6,10 +6,12 @@ Given a well-trained classifier, the accuracy on a homology reduced test should 
 
 ## Documentation
 
-### Step by step guid to get this running yourself
+### Step by step guide to get this running yourself (on a unix machine with miniconda installed)
 1. Install the conda environment in the `conda_env` directory.
+
 `conda env create -f conda_env/py3.6-gapmodeldemo.yml`
-2
+
+`conda activate py3.6-gapmodeldemo`
 
 ### Parsing the data
 Parsing PDB structures can be tedious given the massive heterogeneity between PDBs despite being in the same format. 
