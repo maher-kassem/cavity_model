@@ -10,7 +10,7 @@ Given a well-trained classifier, the accuracy on a homology reduced test should 
 0. Clone the repository and change directory
 
 `git clone https://github.com/mahermkassem/Protein_Gap_Model_Demo.git`
-
+\\
 `cd Protein_Gap_Model_Demo`
 
 1. Install the conda environment in the `conda_env` directory.
