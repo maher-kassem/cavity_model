@@ -1,6 +1,5 @@
 #!/bin/bash
-source activate py3.6-ddg
-
+source activate py3.6-gapmodeldemo
 
 # Settings
 pdbid_filename=transfer_learning_data/pdbids_250.txt
