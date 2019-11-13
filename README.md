@@ -7,14 +7,23 @@ Given a well-trained classifier, the accuracy on a homology reduced test should 
 ## Documentation
 
 ### Step by step guide to get this running yourself (on a unix machine with miniconda installed)
+0. Clone the repository and change directory
+`git clone https://github.com/mahermkassem/Protein_Gap_Model_Demo.git`
+`cd Protein_Gap_Model_Demo`
+
 1. Install the conda environment in the `conda_env` directory.
 
 `conda env create -f conda_env/py3.6-gapmodeldemo.yml`
-
 `conda activate py3.6-gapmodeldemo`
 
-### Parsing the data
-Parsing PDB structures can be tedious given the massive heterogeneity between PDBs despite being in the same format. 
+2. Install reduce. This program is used by my parser to add missing hydrogens to the proteins
+`git clone https://github.com/rlabduke/reduce.git`
+`cd reduce`
+`make; make install` # This should give an error but provide the reduce executable in this directory
 
-### The model
-The prot_gap_model.ipynb notebook is a step by step demonstration of how to train an amino acid classifier on a small set (for convenience) of PDB protein structures (N=250).
+3. Download and Parse the data using my bash script. It downloads the PDBs listed in `data/transfer_learning_data/pdbids_250.txt` and parses them. The final parsed files are saved structures numpy arrays in `data/transfer_learning_data/structural_environments/`.
+
+`cd ../data`
+`./download_and_process_data.sh`
+
+Once it has downloaded, cleaned and parsed all the PDBs, you should be able to run all the code in the `prot_gap_model.ipynb` notebook.
