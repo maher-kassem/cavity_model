@@ -20,7 +20,7 @@ Given a well-trained classifier, the accuracy on a homology reduced test should 
 `cd reduce`  
 `make; make install` # This should give an error but provide the reduce executable in this directory
 
-3. Download and Parse the data using my bash script. It downloads the PDBs listed in `data/transfer_learning_data/pdbids_250.txt` and parses them. The final parsed files are saved structures numpy arrays in `data/transfer_learning_data/structural_environments/`  
+3. Download and Parse the data using my bash script. It downloads the PDBs listed in `data/transfer_learning_data/pdbids_250.txt` and parses them.  
 `cd ../data`  
 `./download_and_process_data.sh`
 
