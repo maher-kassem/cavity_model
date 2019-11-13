@@ -1,4 +1,5 @@
-# Protein_Gap_Model_Demo
-This is  demo of a protein structure based amino acid classifier using 3D convolutions. The central idea is to look at the environment of a query amino acid, remove the atoms the query amino acid and have the classifier attempt to predict the label of the missing. 
+# Protein Gap Model Demonstration 
+This is  demo of a protein structure based amino acid classifier using 3D convolutions. The central idea is to look at the environment of a query amino acid, remove the atoms the query amino acid and have the classifier attempt to predict the label of the missing amino acid given the environment defined as by the sphere around the C$\alpha$ atom of the query amino acid. 
 
-
+## Foundation for Transfer Learning
+Given a well-trained classifier, the accuracy on a homology reduced test should be around 60 %. In this [paper](http://papers.nips.cc/paper/6935-spherical-convolutions-and-their-application-in-molecular-modelling), they reason that the difference in the log-likelihood of a wildtype label and a mutant label must have some correlation with the change in stability 
