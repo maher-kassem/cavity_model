@@ -19,7 +19,7 @@ do
 	echo "Successfully downloaded $p.pdb. Finished $counter/$n_pdbs."
     else
 	echo "Could not download $p.pdb. Attempting to remove potentially non-existant or potentially partial $p.pdb" >&2
-	rm $pdb.pdb # Might give an error, depending on why wget failed.
+	rm $p.pdb # Might give an error, depending on why wget failed.
     fi
     counter=$((counter+1))
 done < $pdbid_filename
