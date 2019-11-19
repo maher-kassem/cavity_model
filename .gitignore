@@ -2,3 +2,4 @@
 *.npz
 /reduce/
 .ipynb_checkpoints/
+*.pyc
