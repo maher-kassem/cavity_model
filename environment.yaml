@@ -1,4 +1,4 @@
-name: cavity-model-test
+name: cavity-model
 channels:
   - omnia
   - conda-forge
