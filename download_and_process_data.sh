@@ -38,7 +38,7 @@ do
     # Check for exit code 0 and skip file if not 0.
     if [ $? -eq 0 ]
     then
-	echo "Successfully cleaned $pdb to data/cleaned/$pdb.pdb. $counter/$n_pdbs."
+	echo "Successfully cleaned $pdb and added it to data/cleaned/. $counter/$n_pdbs."
     else
 	echo "Error when cleaning $pdb. Skipping.." >&2
     fi
@@ -56,7 +56,7 @@ do
     if [ $? -eq 0 ]
     then
 	base_pdb=$(basename $pdb_clean)
-	echo "Successfully extracted environments from $base_pdb. Finished $counter/$n_pdbs."
+	echo "Successfully parsed $base_pdb and moved parsed file to data/parsed. Finished $counter/$n_pdbs."
     else
 	echo "Error extracting $pdb_clean. Skipping.." >&2
     fi
