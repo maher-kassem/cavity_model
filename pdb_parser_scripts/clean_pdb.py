@@ -14,6 +14,10 @@ import simtk.openmm
 import simtk.openmm.app
 
 
+PDBIO = Bio.PDB.PDBIO()
+PDB_PARSER = Bio.PDB.PDBParser(PERMISSIVE=0)
+
+
 class NonHetSelector(Bio.PDB.Select):
     """ Remove HET atoms and choose first conformation of disordered atoms"""
 
@@ -44,6 +48,7 @@ class PDBFixerResIdentifiabilityIssue(Exception):
 def _step_1_reduce(
     reduce_executable,
     pdb_input_filename,
+    pdbid,
     temp1,
 ):
     # Add hydrogens using reduce program
@@ -57,7 +62,7 @@ def _step_1_reduce(
     ]
     error_code = subprocess.Popen(command, stdout=temp1).wait()
     temp1.flush()
-    first_model = PDB_PARSER.get_structure(PDBID, temp1.name)[0]
+    first_model = PDB_PARSER.get_structure(pdbid, temp1.name)[0]
 
     return first_model
 
@@ -152,26 +157,26 @@ def _step_4_fix_numbering(fixer, temp3, temp4):
     return structure_after
 
 
-if __name__ == "__main__":
-    # Argument Parser
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--pdb_file_in", type=str)
-    parser.add_argument("--out_dir", type=str)
-    parser.add_argument("--reduce_exe", type=str)
-
-    # Parse arguments
-    args_dict = vars(parser.parse_args())
-    pdb_input_filename = args_dict["pdb_file_in"]
-    out_dir = args_dict["out_dir"]
-    reduce_executable = args_dict["reduce_exe"]
-
-    PDBIO = Bio.PDB.PDBIO()
-    PDBID = pdb_input_filename.split("/")[-1].split(".pdb")[0]
-    PDB_PARSER = Bio.PDB.PDBParser(PERMISSIVE=0)
+def clean_pdb(pdb_input_filename: str, out_dir: str, reduce_executable: str):
+    """
+    Function to clean pdbs using reduce and pdbfixer. The output file will 
+    have "_cleaned.pdb" suffix.
+    
+    Parameters
+    ----------
+    pdb_input_filename: str
+        PDB filename
+    out_dir: str
+        Output directory.
+    reduce_executable: str
+        Path to the reduce executable
+    """
+    
+    pdbid = pdb_input_filename.split("/")[-1].split(".pdb")[0]
 
     # Step 1: Add hydrogens using reduce program
     with tempfile.NamedTemporaryFile(mode="wt", delete=True) as temp1:
-        first_model = _step_1_reduce(reduce_executable, pdb_input_filename, temp1)
+        first_model = _step_1_reduce(reduce_executable, pdb_input_filename, pdbid, temp1)
 
         # Step 2: NonHetSelector filter
         with tempfile.NamedTemporaryFile(mode="wt", delete=True) as temp2:
@@ -188,7 +193,25 @@ if __name__ == "__main__":
                 with tempfile.NamedTemporaryFile(mode="wt", delete=True) as temp4:
                     structure_after = _step_4_fix_numbering(fixer, temp3, temp4)
                     with open(
-                        os.path.join(out_dir, PDBID + "_clean.pdb"), "w"
+                        os.path.join(out_dir, pdbid + "_clean.pdb"), "w"
                     ) as outpdb:
                         PDBIO.set_structure(structure_after[0])
                         PDBIO.save(outpdb)
+    
+    
+
+if __name__ == "__main__":
+    # Argument Parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--pdb_file_in", type=str)
+    parser.add_argument("--out_dir", type=str)
+    parser.add_argument("--reduce_exe", type=str)
+
+    # Parse arguments
+    args_dict = vars(parser.parse_args())
+    pdb_input_filename = args_dict["pdb_file_in"]
+    out_dir = args_dict["out_dir"]
+    reduce_executable = args_dict["reduce_exe"]
+
+    # Clean 
+    clean_pdb(pdb_input_filename, out_dir, reduce_executable)

@@ -227,23 +227,27 @@ def extract_coordinates(features, max_radius, include_center):
     return xyz_ref_origo_arr, atom_types_numeric, selector_array
 
 
-if __name__ == "__main__":
-    # Argument parser
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--pdb_in", type=str)
-    parser.add_argument("--max_radius", type=float, default=9.0)
-    parser.add_argument("--include_center", type=str, default="False")
-    args_dict = vars(parser.parse_args())
 
-    # Settings
-    pdb_filename = args_dict["pdb_in"]
-    pdb_id = os.path.basename(pdb_filename).split(".")[0]
-    max_radius = args_dict["max_radius"]
-    if args_dict["include_center"] == "False":
-        include_center = False
-    else:
-        include_center = True
-
+def extract_environments(pdb_filename: str, pdb_id: str, max_radius: float = 9.0, 
+                         out_dir: str = "./", include_center: bool = False):
+    """
+    Extract residue environments from PDB file. Outputs .npz file.
+    
+    Parameters
+    ----------
+    pdb_filename: str
+        PDB filename to extract environments from
+    pdb_id: str
+        PDBID. Used as a prefix for the output file, and does not have to follow
+        the standard 4 character nomenclature
+    max_radiues: float
+        Max radius from center CA atom in Angstrom
+    include_center: bool
+        Whether to include the center residue. For the cavity model, this only
+        makes sense with set to False, since we are classifying the missing
+        center residue.
+    """
+    
     # Extract atomic features and other relevant info
     (
         features,
@@ -253,14 +257,15 @@ if __name__ == "__main__":
         resids_pdb,
     ) = extract_atomic_features(pdb_filename)
 
-    # Extract relevant coordinates (already masked with selector and referenced), all atom types and the mask for each residue (selector_array)
+    # Extract relevant coordinates (already masked with selector and referenced), 
+    # all atom types and the mask for each residue (selector_array)
     xyz_ref_origo_arr, atom_types_numeric, selector_array = extract_coordinates(
         features, max_radius, include_center
     )
 
     # Save as .npz
     np.savez_compressed(
-        "{:s}_coordinate_features".format(pdb_id),
+        out_dir + f"/{pdb_id}_coordinate_features",
         atom_types_numeric=atom_types_numeric,
         positions=xyz_ref_origo_arr,
         selector=selector_array,
@@ -269,3 +274,33 @@ if __name__ == "__main__":
         chain_ids=chain_ids,
         residue_numbers=resids_pdb,
     )
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+        
+if __name__ == "__main__":
+    # Argument parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--pdb_in", type=str)
+    parser.add_argument("--max_radius", type=float, default=9.0)
+    parser.add_argument("--include_center", type=str2bool, default=False)
+    parser.add_argument("--out_dir", type=str, default="./")
+    args_dict = vars(parser.parse_args())
+
+    # Settings
+    pdb_filename = args_dict["pdb_in"]
+    pdb_id = os.path.basename(pdb_filename).split(".")[0]
+    max_radius = args_dict["max_radius"]
+    out_dir = args_dict["out_dir"]
+    include_center = args_dict["include_center"]
+
+    # Extract
+    extract_environments(pdb_filename, pdb_id, max_radius, out_dir, include_center)
