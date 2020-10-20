@@ -1,4 +1,5 @@
 *.pdb
+!/data/data_*/pdbs_raw/*.pdb
 *.npz
 /reduce/
 .ipynb_checkpoints/
