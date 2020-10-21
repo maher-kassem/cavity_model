@@ -1,5 +1,7 @@
 *.pdb
-!/data/data_*/pdbs_raw/*.pdb
+!/data/data_protein_g/pdbs_raw/*.pdb
+!/data/data_guerois/pdbs_raw/*.pdb
+!/data/data_dms/pdbs_raw/*.pdb
 *.npz
 /reduce/
 .ipynb_checkpoints/
