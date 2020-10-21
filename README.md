@@ -8,8 +8,8 @@ Given a well-trained classifier, the accuracy on a homology reduced test should 
 
 ### Step by step guide to get this running yourself (**on a linux machine with Miniconda installed**)
 0. Clone the repository and change directory  
-`git clone https://github.com/mahermkassem/Protein_Gap_Model_Demo.git`  
-`cd Protein_Gap_Model_Demo/`
+`git clone https://github.com/mahermkassem/Cavity_Model_Demo.git`  
+`cd Cavity_Model_Demp/`
 
 1. Install and activate the provided exported conda environment.  
 `conda env create -f environment.yaml`  
