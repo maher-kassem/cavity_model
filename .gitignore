@@ -4,5 +4,6 @@
 !/data/data_dms/pdbs_raw/*.pdb
 *.npz
 /reduce/
+/cavity_models/
 .ipynb_checkpoints/
 *.pyc
