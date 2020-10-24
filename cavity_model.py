@@ -42,14 +42,14 @@ class ResidueEnvironment:
         self,
         xyz_coords: np.ndarray,
         atom_types: np.ndarray,
-        restypes_onehot: np.ndarray,
+        restype_onehot: np.ndarray,
         chain_id: str,
         pdb_residue_number: int,
         pdb_id: str,
     ):
         self._xyz_coords = xyz_coords
         self._atom_types = atom_types
-        self._restypes_onehot = restypes_onehot
+        self._restype_onehot = restype_onehot
         self._chain_id = chain_id
         self._pdb_residue_number = pdb_residue_number
         self._pdb_id = pdb_id
@@ -63,9 +63,13 @@ class ResidueEnvironment:
         return self._atom_types
 
     @property
-    def restypes_onehot(self):
-        return self._restypes_onehot
+    def restype_onehot(self):
+        return self._restype_onehot
 
+    @property
+    def restype_index(self):
+        return np.argmax(self.restype_onehot)
+    
     @property
     def chain_id(self):
         return self._chain_id
@@ -80,11 +84,11 @@ class ResidueEnvironment:
 
     def __repr__(self):
         return (
-            f"<ResidueEnvironment with {self.xyz_coords.shape[0]} atoms. \n"
+            f"<ResidueEnvironment with {self.xyz_coords.shape[0]} atoms. "
             f"pdb_id: {self.pdb_id}, "
             f"chain_id: {self.chain_id}, "
-            f"pdb_residue_number: {self.pdb_residue_number},\n"
-            f"restype_one: {np.argmax(self.restypes_onehot)}>"
+            f"pdb_residue_number: {self.pdb_residue_number}, "
+            f"restype_index: {self.restype_index}>"
         )
 
 
@@ -167,7 +171,7 @@ class ResidueEnvironmentsDataset(Dataset):
                 )  # Remove filler
                 coords = atom_coords_prot_seq[resi_i][coords_mask]
                 atom_types = atom_types_flattened[selector_masked]
-                restypes_onehot = restypes_onehots_prot_seq[resi_i]
+                restype_onehot = restypes_onehots_prot_seq[resi_i]
 
                 pdb_residue_number = int(pdb_residue_numbers[resi_i])
                 # Locate chain id
@@ -182,7 +186,7 @@ class ResidueEnvironmentsDataset(Dataset):
                     ResidueEnvironment(
                         coords,
                         atom_types,
-                        restypes_onehot,
+                        restype_onehot,
                         chain_id,
                         pdb_residue_number,
                         pdb_id,
@@ -227,7 +231,7 @@ class ToTensor:
         return {
             "x_": torch.tensor(sample_env, dtype=torch.float32).to(self.device),
             "y_": torch.tensor(
-                np.array(sample.restypes_onehot), dtype=torch.float32
+                np.array(sample.restype_onehot), dtype=torch.float32
             ).to(self.device),
         }
 
