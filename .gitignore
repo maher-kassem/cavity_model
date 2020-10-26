@@ -3,6 +3,7 @@
 !/data/data_guerois/pdbs_raw/*.pdb
 !/data/data_dms/pdbs_raw/*.pdb
 *.npz
+!/data/pdb_frequencies.npz
 /reduce/
 /cavity_models/
 .ipynb_checkpoints/
