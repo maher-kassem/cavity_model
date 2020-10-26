@@ -119,7 +119,7 @@ class ResidueEnvironmentsDataset(Dataset):
                 "Input data is not of type" "Union[List[str], List[ResidueEnvironment]]"
             )
 
-        self.transformer = transformer
+        self._transformer = transformer
 
     @property
     def res_env_objects(self):
