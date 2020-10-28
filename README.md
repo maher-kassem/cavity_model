@@ -1,4 +1,4 @@
-# Protein Cavity Model Demonstration 
+# Reproducing Cavity Model results
 The purpose of this repository is to reproduce the core results in PAPER entitled TITLE.
 
 ## Data
