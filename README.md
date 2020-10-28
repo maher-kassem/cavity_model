@@ -2,20 +2,18 @@
 The purpose of this repository is to reproduce the core results in PAPER entitled TITLE.
 
 ## Data
-Protein G
-    explain
-DMS
-    explain
-Guerois
-    explain
+Protein G  
+    explain  
+DMS  
+    explain  
+Guerois  
+    explain  
 
-# Code
-dir x
-    explain
-file y
-    explain
-
-
+## Code
+dir x  
+    explain  
+file y  
+    explain  
 
 ## Installation
 
