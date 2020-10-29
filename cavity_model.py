@@ -4,6 +4,7 @@ import random
 from typing import Callable, List, Union
 
 import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset
 
@@ -12,6 +13,9 @@ __all__ = [
     "ResidueEnvironmentsDataset",
     "ToTensor",
     "CavityModel",
+    "DownstreamModel",
+    "DDGDataset",
+    "DDGToTensor",
 ]
 
 
@@ -448,3 +452,95 @@ class CavityModel(torch.nn.Module):
                         )
                         fields_torch[i, j, :, :, :] = fields
         return fields_torch
+
+    
+class DownstreamModel(torch.nn.Module):
+    """
+    Simple Downstream FC neural network with 1 hidden layer.
+    """
+
+    def __init__(self):
+        super().__init__()
+
+        # Model
+        self.lin1 = torch.nn.Sequential(
+            torch.nn.Linear(44, self.hidden_nodes),
+            torch.nn.ReLU(),
+        )
+        self.lin2 = torch.nn.Sequential(
+            torch.nn.Linear(10, 10),
+            torch.nn.ReLU(),
+        )
+        self.lin3 = torch.nn.Linear(10, 1)
+
+    def forward(self, x):
+        x = self.lin1(x)
+        x = self.lin2(x)
+        x = self.lin3(x)
+        return x
+
+
+class DDGDataset(Dataset):
+    """
+    ddg dataset
+    """
+
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        transformer: Callable = None,
+    ):
+
+        self._df = df
+        self.transformer = transformer
+
+    @property
+    def df(self):
+        return self._df
+
+    @property
+    def transformer(self):
+        return self._transformer
+
+    @transformer.setter
+    def transformer(self, transformer):
+        """TODO: Think if a constraint to add later"""
+        self._transformer = transformer
+
+    def __len__(self):
+        return self.df.shape[0]
+
+    def __getitem__(self, idx):
+        sample = self.df.iloc[idx]
+        if self.transformer:
+            sample = self.transformer(sample)
+        return sample
+
+
+class DDGToTensor:
+    """
+    To-tensor transformer for ddG dataframe data
+    """
+
+    def __call__(self, sample: pd.Series):
+        wt_onehot = np.zeros(20)
+        wt_onehot[sample["wt_idx"]] = 1.0
+        mt_onehot = np.zeros(20)
+        mt_onehot[sample["mt_idx"]] = 1.0
+
+        x_ = torch.cat(
+            [
+                torch.Tensor(wt_onehot),
+                torch.Tensor(mt_onehot),
+                torch.Tensor(
+                    [
+                        sample["wt_nll"],
+                        sample["mt_nll"],
+                        sample["wt_nlf"],
+                        sample["wt_nlf"],
+                    ]
+                ),
+            ]
+        )
+
+        return {"x_": x_, "y_": sample["ddg"]}

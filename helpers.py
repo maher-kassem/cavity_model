@@ -6,6 +6,7 @@ import torch
 from Bio.PDB.Polypeptide import index_to_one, one_to_index
 from torch.nn.functional import softmax
 from torch.utils.data import DataLoader, Dataset
+from collections import OrderedDict
 
 from cavity_model import (
     CavityModel,
@@ -296,3 +297,55 @@ def _populate_dfs_with_nlls_and_nlfs(
         if display_n_rows:
             print(ddg_data_key)
             display(ddg_data_dict[ddg_data_key].head(display_n_rows))
+
+
+def _augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
+    """
+    Helper function that augments the ddg dfs with the reverse mutations.
+    The dict contains deep copies of the original dataframes before copying.
+    """
+    
+    ddg_data_dict_augmented = OrderedDict()
+    for ddg_key in ["dms", "protein_g", "guerois"]:
+        ddg_data_df_augmented = (
+            ddg_data_dict[ddg_key].copy(deep=True).drop(columns="resenv")
+        )
+        rows_augmented = []
+        for row in ddg_data_df_augmented.iterrows():
+            row_cp = row[1].copy(deep=True)
+            row_cp.name = str(row_cp.name) + "_augmented"
+
+            # Augment
+            row_cp["variant"] = (
+                row_cp["variant"][-1] + row_cp["variant"][1:-1] + row_cp["variant"][0]
+            )
+            row_cp["ddg"] = -1.0 * row_cp["ddg"]
+            row_cp["ddg_pred_no_ds"] = -1.0 * row_cp["ddg_pred_no_ds"]
+
+            wt_idx, mt_idx, wt_nll, mt_nll, wt_nlf, mt_nlf = (
+                row_cp["mt_idx"],
+                row_cp["wt_idx"],
+                row_cp["mt_nll"],
+                row_cp["wt_nll"],
+                row_cp["mt_nlf"],
+                row_cp["wt_nlf"],
+            )
+            (
+                row_cp["wt_idx"],
+                row_cp["mt_idx"],
+                row_cp["wt_nll"],
+                row_cp["mt_nll"],
+                row_cp["wt_nlf"],
+                row_cp["mt_nlf"],
+            ) = (wt_idx, mt_idx, wt_nll, mt_nll, wt_nlf, mt_nlf)
+
+            rows_augmented.append(row_cp)
+        ddg_data_df_augmented = ddg_data_df_augmented.append(rows_augmented)
+        ddg_data_dict_augmented[ddg_key] = ddg_data_df_augmented
+    
+    return ddg_data_dict_augmented
+
+
+
+
+
