@@ -537,7 +537,7 @@ class DDGToTensor:
                         sample["wt_nll"],
                         sample["mt_nll"],
                         sample["wt_nlf"],
-                        sample["wt_nlf"],
+                        sample["mt_nlf"],
                     ]
                 ),
             ]
