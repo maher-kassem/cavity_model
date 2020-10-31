@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import numpy as np
+
 from typing import Tuple
 from scipy.stats import pearsonr, spearmanr
 
@@ -42,4 +44,35 @@ def scatter_pred_vs_true(
 
     fig.tight_layout()
 
+    return fig, ax
+
+
+def plot_validation_performance(fig_title, results_dict):
+    colors_dict = {
+        "dms": "steelblue",
+        "protein_g": "firebrick",
+        "guerois": "forestgreen",
+    }
+
+    fontsize = 15
+    fig, ax = plt.subplots()
+
+    for val_key in results_dict.keys():
+        pearson_list = results_dict[val_key]
+        ax.plot(
+            np.arange(len(pearson_list)),
+            pearson_list,
+            label=val_key,
+            color=colors_dict[val_key],
+        )
+
+    # Set tick label size
+    for tick in ax.xaxis.get_major_ticks():
+        tick.label.set_fontsize(fontsize)
+    for tick in ax.yaxis.get_major_ticks():
+        tick.label.set_fontsize(fontsize)
+
+    legend_bbox_to_anchor = (1, 1)
+    ax.legend(fontsize=fontsize)
+    ax.set_title(fig_title, fontsize=fontsize, y=1.03)
     return fig, ax

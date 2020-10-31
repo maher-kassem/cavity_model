@@ -7,11 +7,16 @@ from Bio.PDB.Polypeptide import index_to_one, one_to_index
 from torch.nn.functional import softmax
 from torch.utils.data import DataLoader, Dataset
 from collections import OrderedDict
+from scipy.stats import pearsonr
 
 from cavity_model import (
     CavityModel,
     ResidueEnvironmentsDataset,
     ToTensor,
+    DDGDataset,
+    DDGToTensor,
+    DownstreamModel,
+
 )
 
 
@@ -346,6 +351,77 @@ def _augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
     return ddg_data_dict_augmented
 
 
+def _get_ddg_training_dataloaders(ddg_data_dict_augmented, BATCH_SIZE_DDG, SHUFFLE_DDG):
+    ddg_dataloaders_train_dict = {}
+    for key in ddg_data_dict_augmented.keys():
+        ddg_dataset_aug = DDGDataset(
+            ddg_data_dict_augmented[key], transformer=DDGToTensor()
+        )
+        ddg_dataloader_aug = DataLoader(
+            ddg_dataset_aug,
+            batch_size=BATCH_SIZE_DDG,
+            shuffle=SHUFFLE_DDG,
+            drop_last=True,
+        )
+        ddg_dataloaders_train_dict[key] = ddg_dataloader_aug
+
+    return ddg_dataloaders_train_dict
 
 
+def _get_ddg_validation_dataloaders(
+    ddg_data_dict, keys=["dms", "protein_g", "guerois"]
+):
+    ddg_dataloaders_val_dict = {}
+    for key in keys:
+        ddg_dataset = DDGDataset(ddg_data_dict[key], transformer=DDGToTensor())
+        ddg_dataloader = DataLoader(
+            ddg_dataset,
+            batch_size=len(ddg_dataset),  # Full dataset as batch size
+            shuffle=False,
+            drop_last=False,
+        )
+        ddg_dataloaders_val_dict[key] = ddg_dataloader
 
+    return ddg_dataloaders_val_dict
+
+
+def _train_downstream_and_evaluate(ddg_dataloaders_train_dict, ddg_dataloaders_val_dict, DEVICE, LEARNING_RATE_DDG, EPOCHS_DDG):
+    pearsons_r_results_dict = {}
+    for train_key in ["dms", "protein_g", "guerois"]:
+        # Define model
+        downstream_model_net = DownstreamModel().to(DEVICE)
+        loss_ddg = torch.nn.MSELoss()
+        optimizer_ddg = torch.optim.Adam(
+            downstream_model_net.parameters(), lr=LEARNING_RATE_DDG
+        )
+        for epoch in range(EPOCHS_DDG):
+            for batch in ddg_dataloaders_train_dict[train_key]:
+                x_batch, y_batch = batch["x_"].to(DEVICE), batch["y_"].to(DEVICE)
+
+                downstream_model_net.train()
+                optimizer_ddg.zero_grad()
+                y_batch_pred = downstream_model_net(x_batch)
+                loss_ddg_batch = loss_ddg(y_batch_pred, y_batch)
+                loss_ddg_batch.backward()
+                optimizer_ddg.step()
+
+            for val_key in ["dms", "protein_g", "guerois"]:
+                if val_key == train_key:
+                    continue
+
+                val_batch = next(iter(ddg_dataloaders_val_dict[val_key]))
+                val_batch_x, val_batch_y = (
+                    val_batch["x_"].to(DEVICE),
+                    val_batch["y_"],
+                )
+                val_batch_y_pred = (
+                    downstream_model_net(val_batch_x).reshape(-1).detach().cpu().numpy()
+                )
+                pearson_r = pearsonr(val_batch_y_pred, val_batch_y)[0]
+                if train_key not in pearsons_r_results_dict:
+                    pearsons_r_results_dict[train_key] = {}
+                if val_key not in pearsons_r_results_dict[train_key]:
+                    pearsons_r_results_dict[train_key][val_key] = []
+
+                pearsons_r_results_dict[train_key][val_key].append(pearson_r)
+    return pearsons_r_results_dict

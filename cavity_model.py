@@ -464,7 +464,7 @@ class DownstreamModel(torch.nn.Module):
 
         # Model
         self.lin1 = torch.nn.Sequential(
-            torch.nn.Linear(44, self.hidden_nodes),
+            torch.nn.Linear(44, 10),
             torch.nn.ReLU(),
         )
         self.lin2 = torch.nn.Sequential(
