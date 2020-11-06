@@ -8,16 +8,19 @@ DMS
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://dx.doi.org/10.1038%2Fs41588-018-0122-z.  
 Guerois  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://doi.org/10.1016/s0022-2836(02)00442-4.  
+Symmetric  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://doi.org/10.1093/bioinformatics/bty348  
 
 ## Code
 `cavity_model.py` contains the main cavity model and downstream model classes and data loaders  
 `cavity_model_pipeline.py` contains the full pipeline to reproduce the results of the paper  
 `helpers.py` protected helper functions for the pipeline  
-`pdb_parser_scripts/` contains a pdb cleaning script and a parser script to extract residue environments
+`pdb_parser_scripts/`contains a pdb cleaning script and a parser script to extract residue environments  
+`get_and_parse_pdbs_for_cavity_model.sh` Bash script to parse PDBs for the cavity model  
+`get_and_parse_pdbs_for_downstream_model.sh` Bash script to parse PDBs for the downstream model (i.e. PDBs of the ddG datasets)   
 
 ## Installation
-
-### Step by step guide to get this running yourself (**Only tested on linux with Minoconda**)
+### (**Only tested on linux with Minoconda**)
 0. Clone the repository and change directory  
 `git clone https://github.com/mahermkassem/Cavity_Model_Demo.git`  
 `cd Cavity_Model_Demp/`
