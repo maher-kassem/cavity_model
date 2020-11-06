@@ -25,7 +25,7 @@ file y
 1. Install and activate the provided exported conda environment.  
 `conda create --name cavity-model python=3.6`  
 `conda activate cavity-model`  
-`conda install notebook black nb_black pytorch pandas scipy numpy=1.17.3 pdbfixer=1.5 pytorch=1.2.0 biopython=1.72 openmm=7.3.1 matplotlib=3.1.1 -c omnia -c conda-forge -c anaconda -c defaults`  
+`conda install notebook black nb_black pandas scipy numpy=1.17.3 pdbfixer=1.5 pytorch=1.2.0 biopython=1.72 openmm=7.3.1 matplotlib=3.1.1 -c omnia -c conda-forge -c anaconda -c defaults`  
 
 2. Install reduce. This program is used by my parser to add missing hydrogens to the proteins  
 `git clone https://github.com/rlabduke/reduce.git`  
