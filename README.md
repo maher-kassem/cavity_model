@@ -3,13 +3,13 @@ The purpose of this repository is to reproduce the core results in PAPER entitle
 
 ## Data
 Protein G  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in  https://doi.org/10.1101/484949.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `data/data_protein_g/`(https://doi.org/10.1101/484949)  
 DMS  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://dx.doi.org/10.1038%2Fs41588-018-0122-z.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `data/data_dms/`(https://dx.doi.org/10.1038%2Fs41588-018-0122-z)  
 Guerois  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://doi.org/10.1016/s0022-2836(02)00442-4.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `data/data_guerois/`(https://doi.org/10.1016/s0022-2836(02)00442-4)  
 Symmetric  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://doi.org/10.1093/bioinformatics/bty348  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `data/data_symmetric/`(https://doi.org/10.1093/bioinformatics/bty348)  
 
 ## Code
 `cavity_model.py` contains the main cavity model and downstream model classes and data loaders  
