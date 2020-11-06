@@ -5,9 +5,9 @@ The purpose of this repository is to reproduce the core results in PAPER entitle
 Protein G  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in  https://doi.org/10.1101/484949.  
 DMS  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://dx.doi.org/10.1038%2Fs41588-018-0122-z  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://dx.doi.org/10.1038%2Fs41588-018-0122-z.  
 Guerois  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://doi.org/10.1016/s0022-2836(02)00442-4  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://doi.org/10.1016/s0022-2836(02)00442-4.  
 
 ## Installation
 
@@ -26,4 +26,6 @@ Guerois
 `cd reduce/`  
 `make; make install` # This might give an error but provide the reduce executable in this directory
 
-3. You should be able to run all the code in the `cavity_model.ipynb` notebook.
+3. You should be able to run all the code in the `cavity_model.ipynb` notebook.  
+`cd ../`  
+`jupyter notebook`
