@@ -3,17 +3,11 @@ The purpose of this repository is to reproduce the core results in PAPER entitle
 
 ## Data
 Protein G  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; explain  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in  https://doi.org/10.1101/484949.  
 DMS  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; explain  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://dx.doi.org/10.1038%2Fs41588-018-0122-z  
 Guerois  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; explain  
-
-## Code
-dir x  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; explain  
-file y  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; explain  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://doi.org/10.1016/s0022-2836(02)00442-4  
 
 ## Installation
 
