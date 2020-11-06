@@ -1,8 +1,9 @@
 #!/bin/bash
-source activate cavity-model
+conda_activate_path=$1
+source $conda_activate_path cavity-model
 
 # Settings
-pdbid_filename=$1
+pdbid_filename=$2
 reduce_exe=reduce/reduce
 n_pdbs=$(cat $pdbid_filename | wc -l)
 
