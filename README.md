@@ -9,6 +9,12 @@ DMS
 Guerois  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data is described in https://doi.org/10.1016/s0022-2836(02)00442-4.  
 
+## Code
+`cavity_model.py` contains the main cavity model and downstream model classes and data loaders  
+`cavity_model_pipeline.py` contains the full pipeline to reproduce the results of the paper  
+`helpers.py` protected helper functions for the pipeline  
+`pdb_parser_scripts/` contains a pdb cleaning script and a parser script to extract residue environments
+
 ## Installation
 
 ### Step by step guide to get this running yourself (**Only tested on linux with Minoconda**)
