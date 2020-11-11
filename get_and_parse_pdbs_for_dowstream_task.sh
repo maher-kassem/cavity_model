@@ -1,5 +1,6 @@
 #!/bin/bash
-source activate cavity-model
+conda_activate_path=$1
+source $conda_activate_path cavity-model
 
 
 # Settings
