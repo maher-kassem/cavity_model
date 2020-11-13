@@ -16,7 +16,8 @@ Symmetric
 `cavity_model_pipeline.py` contains the full pipeline to reproduce the results of the paper  
 `helpers.py` protected helper functions for the pipeline  
 `pdb_parser_scripts/`contains a pdb cleaning script and a parser script to extract residue environments  
-`get_and_parse_pdbs_for_cavity_model.sh` Bash script to parse PDBs for the cavity model  
+`simulation_script/` contains scripts for running explicit solvent MD and Rosetta  
+`get_and_parse_pdbs_for_cavity_model.sh` bash script to parse PDBs for the cavity model  
 `get_and_parse_pdbs_for_downstream_model.sh` Bash script to parse PDBs for the downstream model (i.e. PDBs of the ddG datasets)   
 
 ## Installation
