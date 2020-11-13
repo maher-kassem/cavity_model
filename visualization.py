@@ -71,8 +71,7 @@ def plot_validation_performance(fig_title, results_dict):
         tick.label.set_fontsize(fontsize)
     for tick in ax.yaxis.get_major_ticks():
         tick.label.set_fontsize(fontsize)
-
-    legend_bbox_to_anchor = (1, 1)
+    
     ax.legend(fontsize=fontsize)
     ax.set_title(fig_title, fontsize=fontsize, y=1.03)
     ax.set_ylim([0, 0.85])
