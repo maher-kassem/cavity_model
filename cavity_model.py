@@ -482,7 +482,7 @@ class DownstreamModel(torch.nn.Module):
 
 class DDGDataset(Dataset):
     """
-    ddg dataset
+    ddG dataset
     """
 
     def __init__(
