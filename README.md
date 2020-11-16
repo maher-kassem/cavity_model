@@ -2,6 +2,8 @@
 The purpose of this repository is to reproduce the core results in PAPER entitled TITLE.
 
 ## Data
+PDBIDs used for training Cavity Model  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `data/pdbids_2336.txt` (https://papers.nips.cc/paper/2017/file/1113d7a76ffceca1bb350bfe145467c6-Paper.pdf)  
 Protein G  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `data/data_protein_g/`(https://doi.org/10.1101/484949)  
 DMS  
