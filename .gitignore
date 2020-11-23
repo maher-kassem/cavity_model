@@ -2,6 +2,7 @@
 !/data/data_protein_g/pdbs_raw/*.pdb
 !/data/data_guerois/pdbs_raw/*.pdb
 !/data/data_dms/pdbs_raw/*.pdb
+!/simulation_scripts/rosetta/*.pdb
 *.npz
 !/data/pdb_frequencies.npz
 /reduce/
