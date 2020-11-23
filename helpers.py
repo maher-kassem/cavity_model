@@ -16,7 +16,6 @@ from cavity_model import (
     DDGDataset,
     DDGToTensor,
     DownstreamModel,
-
 )
 
 
@@ -131,6 +130,9 @@ def _train_loop(
     EPOCHS: int,
     PATIENCE_CUTOFF: int,
 ):
+    """
+    Helper function to perform training loop for the Cavity Model.
+    """
     current_best_epoch_idx = -1
     current_best_loss_val = 1e4
     patience = 0
@@ -179,7 +181,7 @@ def _train_loop(
         else:
             patience += 1
         if patience > PATIENCE_CUTOFF:
-            print(f"Early stopping activated.")
+            print("Early stopping activated.")
             break
 
     best_model_path = epoch_idx_to_model_path[current_best_epoch_idx]
@@ -199,7 +201,7 @@ def _populate_dfs_with_resenvs(
     """
     print(
         "Dropping data points where residue is not defined in structure "
-        f"or due to missing parsed pdb file"
+        "or due to missing parsed pdb file"
     )
     # Add wt residue environments to standard ddg data dataframes
     for ddg_data_key in ddg_data_dict.keys():
@@ -242,7 +244,6 @@ def _populate_dfs_with_nlls_and_nlfs(
     DEVICE: str,
     BATCH_SIZE: int,
     EPS: float,
-    display_n_rows: Union[None, int] = 2,
 ):
     """
     Helper function to populate ddG dfs with predicted negative-log-likelihoods and negative-log-frequencies
@@ -299,17 +300,13 @@ def _populate_dfs_with_nlls_and_nlfs(
             axis=1,
         )
 
-        if display_n_rows:
-            print(ddg_data_key)
-            display(ddg_data_dict[ddg_data_key].head(display_n_rows))
-
 
 def _augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
     """
     Helper function that augments the ddg dfs with the reverse mutations.
     The dict contains deep copies of the original dataframes before copying.
     """
-    
+
     ddg_data_dict_augmented = OrderedDict()
     for ddg_key in ["dms", "protein_g", "guerois"]:
         ddg_data_df_augmented = (
@@ -347,7 +344,7 @@ def _augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
             rows_augmented.append(row_cp)
         ddg_data_df_augmented = ddg_data_df_augmented.append(rows_augmented)
         ddg_data_dict_augmented[ddg_key] = ddg_data_df_augmented
-    
+
     return ddg_data_dict_augmented
 
 
@@ -371,6 +368,9 @@ def _get_ddg_training_dataloaders(ddg_data_dict_augmented, BATCH_SIZE_DDG, SHUFF
 def _get_ddg_validation_dataloaders(
     ddg_data_dict, keys=["dms", "protein_g", "guerois"]
 ):
+    """
+    Helper function that return validation set dataloaders for ddg data.
+    """
     ddg_dataloaders_val_dict = {}
     for key in keys:
         ddg_dataset = DDGDataset(ddg_data_dict[key], transformer=DDGToTensor())
@@ -385,7 +385,13 @@ def _get_ddg_validation_dataloaders(
     return ddg_dataloaders_val_dict
 
 
-def _train_downstream_and_evaluate(ddg_dataloaders_train_dict, ddg_dataloaders_val_dict, DEVICE, LEARNING_RATE_DDG, EPOCHS_DDG):
+def _train_downstream_and_evaluate(
+    ddg_dataloaders_train_dict,
+    ddg_dataloaders_val_dict,
+    DEVICE,
+    LEARNING_RATE_DDG,
+    EPOCHS_DDG,
+):
     pearsons_r_results_dict = {}
     for train_key in ["dms", "protein_g", "guerois"]:
         # Define model
@@ -400,7 +406,7 @@ def _train_downstream_and_evaluate(ddg_dataloaders_train_dict, ddg_dataloaders_v
 
                 downstream_model_net.train()
                 optimizer_ddg.zero_grad()
-                y_batch_pred = downstream_model_net(x_batch)
+                y_batch_pred = downstream_model_net(x_batch).squeeze()
                 loss_ddg_batch = loss_ddg(y_batch_pred, y_batch)
                 loss_ddg_batch.backward()
                 optimizer_ddg.step()
