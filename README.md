@@ -2,6 +2,8 @@
 The purpose of this repository is to reproduce the core results in PAPER entitled TITLE.
 
 ## Data
+PDBIDs used for training Cavity Model  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `data/pdbids_2336.txt` (https://papers.nips.cc/paper/2017/file/1113d7a76ffceca1bb350bfe145467c6-Paper.pdf)  
 Protein G  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `data/data_protein_g/`(https://doi.org/10.1101/484949)  
 DMS  
@@ -29,7 +31,7 @@ Symmetric
 1. Install and activate the provided exported conda environment.  
 `conda create --name cavity-model python=3.6`  
 `conda activate cavity-model`  
-`conda install notebook black nb_black pandas scipy numpy=1.17.3 pdbfixer=1.5 pytorch=1.2.0 biopython=1.72 openmm=7.3.1 matplotlib=3.1.1 -c omnia -c conda-forge -c anaconda -c defaults`  
+`conda install notebook black nb_black pandas scipy numpy=1.17.3 pdbfixer=1.5 pytorch=1.2.0 biopython=1.72 openmm=7.3.1 matplotlib=3.1.1 openmm=7.3.1 -c omnia -c conda-forge -c anaconda -c defaults`  
 
 2. Install reduce. This program is used by my parser to add missing hydrogens to the proteins  
 `git clone https://github.com/rlabduke/reduce.git`  
