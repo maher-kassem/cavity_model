@@ -23,7 +23,7 @@ Symmetric
 `get_and_parse_pdbs_for_downstream_model.sh` Bash script to parse PDBs for the downstream model (i.e. PDBs of the ddG datasets)   
 
 ## Installation
-### (**Only tested on linux with Minoconda**)
+### (**Only tested on linux with Miniconda**)
 0. Clone the repository and change directory  
 `git clone https://github.com/mahermkassem/Cavity_Model_Demo.git`  
 `cd Cavity_Model_Demp/`
