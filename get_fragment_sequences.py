@@ -41,7 +41,7 @@ if __name__ == "__main__":
         seq = pdb_info_dict[record_id]
         resid = residue_number - 1
         left_flank = trim_left_flank(seq[:resid])
-        right_flank = trim_right_flank(seq[resid:])
+        right_flank = trim_right_flank(seq[resid+1:])
 
         try:
             if wt_residue == seq[resid]:
