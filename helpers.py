@@ -8,6 +8,7 @@ from torch.nn.functional import softmax
 from torch.utils.data import DataLoader, Dataset
 from collections import OrderedDict
 from scipy.stats import pearsonr
+from Bio import SeqIO
 
 from cavity_model import (
     CavityModel,
@@ -252,6 +253,30 @@ def _populate_dfs_with_nlls_and_nlfs(
     # Load PDB amino acid frequencies used to approximate unfolded states
     pdb_nlfs = -np.log(np.load("data/pdb_frequencies.npz")["frequencies"])
 
+    # Load IDP amino acid frequences to approximate unfolded states to dict
+    idp_nlfs = {
+        "A": -np.log(0.06856891151135473),
+        "C": -np.log(0.03244909945184025),
+        "D": -np.log(0.058633516053249804),
+        "E": -np.log(0.09025058731401722),
+        "F": -np.log(0.023296789350039156),
+        "G": -np.log(0.06528974158183241),
+        "H": -np.log(0.009641738449490995),
+        "I": -np.log(0.04113645262333594),
+        "K": -np.log(0.07845536413469067),
+        "L": -np.log(0.07852877838684416),
+        "M": -np.log(0.018794048551292093),
+        "N": -np.log(0.04023101018010963),
+        "P": -np.log(0.07703602192638997),
+        "Q": -np.log(0.047841620986687546),
+        "R": -np.log(0.0668559122944401),
+        "S": -np.log(0.07938527799530148),
+        "T": -np.log(0.05716523101018011),
+        "V": -np.log(0.04835552075176194),
+        "W": -np.log(0.003205755677368833),
+        "Y": -np.log(0.014878621769772905),
+    }
+
     # Add predicted Nlls and NLFs to ddG dataframes
     for ddg_data_key in ddg_data_dict.keys():
         df = ddg_data_dict[ddg_data_key]
@@ -297,6 +322,16 @@ def _populate_dfs_with_nlls_and_nlfs(
         # Add ddG prediction (without downstream model)
         df["ddg_pred_no_ds"] = df.apply(
             lambda row: row["mt_nll"] - row["mt_nlf"] - row["wt_nll"] + row["wt_nlf"],
+            axis=1,
+        )
+
+        # Add IDP database statistics negative log frequencies to df
+        df["wt_idp_nlf"] = df.apply(lambda row: idp_nlfs[index_to_one(row["wt_idx"])], axis=1)
+        df["mt_idp_nlf"] = df.apply(lambda row: idp_nlfs[index_to_one(row["mt_idx"])], axis=1)
+
+        # Add ddG prediction with IDP statistics (without downstream model)
+        df["ddg_pred_idp_no_ds"] = df.apply(
+            lambda row: row["mt_nll"] - row["mt_idp_nlf"] - row["wt_nll"] + row["wt_idp_nlf"],
             axis=1,
         )
 
@@ -431,3 +466,45 @@ def _train_downstream_and_evaluate(
 
                 pearsons_r_results_dict[train_key][val_key].append(pearson_r)
     return pearsons_r_results_dict
+
+
+def _trim_left_flank(left_flank: str):
+    if len(left_flank) <= 5:
+        padding = "-" * (5 - len(left_flank))
+        return padding + left_flank
+    else:
+        return left_flank[-5:]
+
+
+def _trim_right_flank(right_flank: str):
+    if len(right_flank) <= 5:
+        padding = "-" * (5 - len(right_flank))
+        return right_flank + padding
+    else:
+        return right_flank[:5]
+
+
+def _add_flanking_seq_fragments(
+    ddg_data_dict: Dict,
+    dataset: str,
+    pdb_filename: str
+):
+
+    if "left_flank" not in ddg_data_dict[dataset].columns:
+        ddg_data_dict[dataset]["left_flank"] = np.nan
+    if "wt_restype" not in ddg_data_dict[dataset].columns:
+        ddg_data_dict[dataset]["wt_restype"] = np.nan
+    if "right_flank" not in ddg_data_dict[dataset].columns:
+        ddg_data_dict[dataset]["right_flank"] = np.nan
+
+    pdbid = pdb_filename.split(r"/")[-1][0:4].upper()
+    for record in SeqIO.parse(pdb_filename, "pdb-seqres"):
+        seq_res = str(record.seq)
+
+    for idx, row in ddg_data_dict[dataset].iterrows():
+        if row["pdbid"] == pdbid:
+            resid = int(row["variant"][1:-1]) - 1
+            ddg_data_dict[dataset].loc[idx, "left_flank"] = _trim_left_flank(seq_res[:resid])
+            ddg_data_dict[dataset].loc[idx, "wt_restype"] = row["variant"][0]
+            ddg_data_dict[dataset].loc[idx, "right_flank"] = _trim_right_flank(seq_res[resid + 1:])
+    
