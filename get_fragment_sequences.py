@@ -32,11 +32,13 @@ if __name__ == "__main__":
 
     left_flanks = []
     wt_residues = []
+    mt_residues = []
     right_flanks = []
     for idx, row in mut_df.iterrows():
         record_id = f"{row['pdbid']}:{row['chainid']}"
         residue_number = int(row["variant"][1:-1])
         wt_residue = row["variant"][0]
+        mt_residue = row["variant"][-1]
 
         seq = pdb_info_dict[record_id]
         resid = residue_number - 1
@@ -48,16 +50,19 @@ if __name__ == "__main__":
                 left_flanks.append(left_flank)
                 wt_residues.append(wt_residue)
                 right_flanks.append(right_flank)
+                mt_residues.append(mt_residue)
             else:
                 print(f"Mismatch problem with {record_id} {row['variant']}")
                 left_flanks.append("")
                 wt_residues.append(wt_residue)
                 right_flanks.append("")
+                mt_residues.append(mt_residue)
         except IndexError:
             print(f"Got index error for {record_id} {row['variant']}")
 
     mut_df["left_sequence_flank"] = left_flanks
     mut_df["wt_residue"] = wt_residues
     mut_df["right_sequence_flank"] = right_flanks
+    mut_df["mt_residue"] = mt_residues
 
     mut_df.to_csv("temp.csv")
