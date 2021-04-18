@@ -199,6 +199,9 @@ class ResidueEnvironmentsDataset(Dataset):
 
         return res_env_objects
 
+    def __repr__(self):
+        return (f"<ResidueEnvironmentsDataset with size {len(self)}")
+
 
 class ToTensor:
     """
