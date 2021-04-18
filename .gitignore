@@ -9,6 +9,7 @@
 /cavity_models/
 .ipynb_checkpoints/
 *.pyc
+simulate_seq_fragments/
 
 ### vscode ###
 .vscode/*
