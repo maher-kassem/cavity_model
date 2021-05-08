@@ -3,7 +3,7 @@ from typing import Dict, List, Union
 import numpy as np
 import pandas as pd
 import torch
-from Bio.PDB.Polypeptide import index_to_one, one_to_index
+from Bio.PDB.Polypeptide import index_to_one, one_to_index, three_to_one, index_to_three
 from torch.nn.functional import softmax
 from torch.utils.data import DataLoader, Dataset
 from collections import OrderedDict
@@ -494,17 +494,59 @@ def _add_flanking_seq_fragments(
         ddg_data_dict[dataset]["left_flank"] = np.nan
     if "wt_restype" not in ddg_data_dict[dataset].columns:
         ddg_data_dict[dataset]["wt_restype"] = np.nan
+    if "mt_restype" not in ddg_data_dict[dataset].columns:
+        ddg_data_dict[dataset]["mt_restype"] = np.nan
     if "right_flank" not in ddg_data_dict[dataset].columns:
         ddg_data_dict[dataset]["right_flank"] = np.nan
 
     pdbid = pdb_filename.split(r"/")[-1][0:4].upper()
-    for record in SeqIO.parse(pdb_filename, "pdb-seqres"):
-        seq_res = str(record.seq)
+
+    # # Load SEQRES
+    # chain_id_to_seq_res = {}
+    # for record in SeqIO.parse(pdb_filename, "pdb-seqres"):
+    #     seq_res = str(record.seq)
+    #     chain_id = record.id[-1]
+    #     chain_id_to_seq_res[chain_id] = seq_res
+    #     print(record.annotations)
+
+
+    # # Load PDBSEQ
+    # from Bio.SeqIO.PdbIO import PdbAtomIterator
+    # chain_id_to_pdb_seq = {}
+    # with open(pdb_filename) as handle:
+    #     for record in PdbAtomIterator(handle):
+    #         pdb_seq = str(record.seq)
+    #         chain_id = record.id[-1]
+    #         chain_id_to_pdb_seq[chain_id] = pdb_seq
+
+    from Bio.PDB.PDBParser import PDBParser
+
+    p = PDBParser()
+    model_first = p.get_structure(pdbid, pdb_filename)[0]
+    chain_id_to_pdb_seq = {}
+    chain_id_to_pdb_residue_numbers = {}
+    for chain in model_first:
+        pdb_seq = []
+        pdb_residue_numbers = []
+        for residue in chain.get_residues():
+            if residue.resname.strip() in [index_to_three(i) for i in range(20)]:
+                pdb_residue_numbers.append(residue.id[1])
+                pdb_seq.append(three_to_one(residue.resname.strip()))
+        chain_id_to_pdb_seq[chain.id] = "".join(pdb_seq)
+        chain_id_to_pdb_residue_numbers[chain.id] = pdb_residue_numbers
 
     for idx, row in ddg_data_dict[dataset].iterrows():
         if row["pdbid"] == pdbid:
-            resid = int(row["variant"][1:-1]) - 1
-            ddg_data_dict[dataset].loc[idx, "left_flank"] = _trim_left_flank(seq_res[:resid])
-            ddg_data_dict[dataset].loc[idx, "wt_restype"] = row["variant"][0]
-            ddg_data_dict[dataset].loc[idx, "right_flank"] = _trim_right_flank(seq_res[resid + 1:])
-    
+            residue_number = int(row["variant"][1:-1])
+            chain_id = row["chainid"]
+
+            pdb_sequence = chain_id_to_pdb_seq[chain_id]
+            resid = chain_id_to_pdb_residue_numbers[chain_id].index(residue_number)
+
+            if row["variant"][0] == pdb_sequence[resid]:
+                ddg_data_dict[dataset].loc[idx, "left_flank"] = _trim_left_flank(pdb_sequence[:resid])
+                ddg_data_dict[dataset].loc[idx, "right_flank"] = _trim_right_flank(pdb_sequence[resid + 1:])
+                ddg_data_dict[dataset].loc[idx, "wt_restype"] = row["variant"][0]
+                ddg_data_dict[dataset].loc[idx, "mt_restype"] = row["variant"][-1]
+            else:
+                print("WRONG", row[["pdbid", "variant"]])
