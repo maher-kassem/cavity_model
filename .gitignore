@@ -11,6 +11,9 @@
 *.pyc
 simulate_seq_fragments/
 
+/data/data_protein_g/molecular_dynamics/
+/data/data_protein_g/simulate_seq_fragments*/
+
 ### vscode ###
 .vscode/*
 *.code-workspace

@@ -22,7 +22,6 @@ def scatter_pred_vs_true(
     Function to scatter plot true vs predicted ddG and report Pearson's and
     Spearman's correlations.
     """
-    
     fig, ax = plt.subplots()
     ax.scatter(x, y, s=scatter_size, c=color)
 
@@ -35,9 +34,12 @@ def scatter_pred_vs_true(
     ax.set_xlabel(xlab, fontsize=fontsize, labelpad=labelpad)
     ax.set_ylabel(ylab, fontsize=fontsize, labelpad=labelpad)
 
+    x_ = [val[0] for val in zip(x, y) if not np.isnan(val[1]) and not np.isnan(val[0])]
+    y_ = [val[1] for val in zip(x, y) if not np.isnan(val[1]) and not np.isnan(val[0])]
+
     title = (
         title
-        + f"\nPearson's r {pearsonr(x, y)[0]:4.2f}, Spearman's r {spearmanr(x,y)[0]:4.2f}"
+        + f"\nPearson's r {pearsonr(x_, y_)[0]:4.2f}, Spearman's r {spearmanr(x_,y_)[0]:4.2f}"
     )
 
     ax.set_title(title, fontsize=fontsize, y=title_gap)

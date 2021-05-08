@@ -114,14 +114,17 @@ class ResidueEnvironmentsDataset(Dataset):
         input_data: Union[List[str], List[ResidueEnvironment]],
         transformer: Callable = None,
     ):
-        if all(isinstance(x, ResidueEnvironment) for x in input_data):
-            self._res_env_objects = input_data
-        elif all(isinstance(x, str) for x in input_data):
-            self._res_env_objects = self._parse_envs(input_data)
+        if len(input_data) > 0:
+            if all(isinstance(x, ResidueEnvironment) for x in input_data):
+                self._res_env_objects = input_data
+            elif all(isinstance(x, str) for x in input_data):
+                self._res_env_objects = self._parse_envs(input_data)
+            else:
+                raise ValueError(
+                    "Input data is not of type" "Union[List[str], List[ResidueEnvironment]]"
+                )
         else:
-            raise ValueError(
-                "Input data is not of type" "Union[List[str], List[ResidueEnvironment]]"
-            )
+            raise ValueError("No input data was given to the constructor")
 
         self._transformer = transformer
 
