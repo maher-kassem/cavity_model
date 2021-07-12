@@ -10,8 +10,8 @@
 .ipynb_checkpoints/
 *.pyc
 simulate_seq_fragments/
-/data/data_protein_g/molecular_dynamics/
-/data/data_protein_g/simulate_seq_fragments*/
+# /data/data_protein_g/molecular_dynamics/
+# /data/data_protein_g/simulate_seq_fragments*/
 /data/*/simulate_seq_fragments*/*
 *tar.gz
 ### vscode ###
