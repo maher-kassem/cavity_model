@@ -1,6 +1,6 @@
 import glob
 from collections import OrderedDict
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -21,7 +21,7 @@ from cavity_model import (
 )
 
 
-def _train_val_split(
+def train_val_split(
     parsed_pdb_filenames: List[str],
     TRAIN_VAL_SPLIT: float,
     DEVICE: str,
@@ -74,7 +74,7 @@ def _train_step(
     cavity_model_net: CavityModel,
     optimizer: torch.optim.Adam,
     loss_function: torch.nn.CrossEntropyLoss,
-) -> (torch.Tensor, float):
+) -> Tuple[torch.Tensor, float]:
     """
     Helper function to take a training step
     """
@@ -91,7 +91,7 @@ def _eval_loop(
     cavity_model_net: CavityModel,
     dataloader_val: DataLoader,
     loss_function: torch.nn.CrossEntropyLoss,
-) -> (float, float):
+) -> Tuple[float, float]:
     """
     Helper function to perform an eval loop
     """
@@ -113,7 +113,7 @@ def _eval_loop(
     return acc_val, loss_val
 
 
-def _train_loop(
+def train_loop(
     dataloader_train: DataLoader,
     dataloader_val: DataLoader,
     cavity_model_net: CavityModel,
@@ -181,7 +181,7 @@ def _train_loop(
     return best_model_path
 
 
-def _populate_dfs_with_resenvs(
+def populate_dfs_with_resenvs(
     ddg_data_dict: Dict[str, pd.DataFrame], resenv_datasets_look_up: Dict[str, Dataset]
 ):
     """
@@ -225,7 +225,7 @@ def _populate_dfs_with_resenvs(
         )
 
 
-def _populate_dfs_with_nlls_and_nlfs(
+def populate_dfs_with_nlls_and_nlfs(
     ddg_data_dict: Dict[str, pd.DataFrame],
     cavity_model_infer_net: CavityModel,
     DEVICE: str,
@@ -320,7 +320,7 @@ def _populate_dfs_with_nlls_and_nlfs(
         )
 
 
-def _augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
+def augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
     """
     Helper function that augments the ddg dfs with the reverse mutations.
     The dict contains deep copies of the original dataframes before copying.
@@ -365,7 +365,7 @@ def _augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
     return ddg_data_dict_augmented
 
 
-def _get_ddg_training_dataloaders(ddg_data_dict_augmented, BATCH_SIZE_DDG, SHUFFLE_DDG):
+def get_ddg_training_dataloaders(ddg_data_dict_augmented, BATCH_SIZE_DDG, SHUFFLE_DDG):
     ddg_dataloaders_train_dict = {}
     for key in ddg_data_dict_augmented.keys():
         ddg_dataset_aug = DDGDataset(ddg_data_dict_augmented[key], transformer=DDGToTensor())
@@ -380,7 +380,7 @@ def _get_ddg_training_dataloaders(ddg_data_dict_augmented, BATCH_SIZE_DDG, SHUFF
     return ddg_dataloaders_train_dict
 
 
-def _get_ddg_validation_dataloaders(ddg_data_dict, keys=["dms", "protein_g", "guerois"]):
+def get_ddg_validation_dataloaders(ddg_data_dict, keys=["dms", "protein_g", "guerois"]):
     """
     Helper function that return validation set dataloaders for ddg data.
     """
@@ -398,7 +398,7 @@ def _get_ddg_validation_dataloaders(ddg_data_dict, keys=["dms", "protein_g", "gu
     return ddg_dataloaders_val_dict
 
 
-def _train_downstream_and_evaluate(
+def train_downstream_and_evaluate(
     ddg_dataloaders_train_dict,
     ddg_dataloaders_val_dict,
     DEVICE,
@@ -460,7 +460,7 @@ def _trim_right_flank(right_flank: str):
         return right_flank[:5]
 
 
-def _add_flanking_seq_fragments(ddg_data_dict: Dict, dataset: str, pdb_filename: str):
+def add_flanking_seq_fragments(ddg_data_dict: Dict, dataset: str, pdb_filename: str):
 
     if "left_flank" not in ddg_data_dict[dataset].columns:
         ddg_data_dict[dataset]["left_flank"] = np.nan
@@ -528,7 +528,7 @@ def _add_flanking_seq_fragments(ddg_data_dict: Dict, dataset: str, pdb_filename:
 
 
 # TODO Rename probabilities to NLL
-def _infer_probabilities_for_center_residues(
+def infer_probabilities_for_center_residues(
     ddg_data_dict: Dict,
     dataset: str,
     cavity_model_infer_net: CavityModel,
@@ -536,7 +536,7 @@ def _infer_probabilities_for_center_residues(
     EPS: float,
     *,
     is_wt: bool = True,
-    stride: int = 10,
+    stride: int = 50,
 ):
     """
     Add the inferred wt and mt probabilities for the center residues of simulated sequence
@@ -612,7 +612,7 @@ def _infer_probabilities_for_center_residues(
         ddg_data_dict[dataset]["fragment_nll_mt_given_mt"] = fragments_nlls_mt
 
 
-def _add_ddg_preds_with_unfolded_state(ddg_data_dict: Dict, dataset: str):
+def add_ddg_preds_with_unfolded_state(ddg_data_dict: Dict, dataset: str):
     """
     Calculates ddg prediction using the first only the WT fragments, then the MT fragments,
     and then both. Note that is still without any down stream model
@@ -654,14 +654,14 @@ def _get_residue_map(dataset: str, pdb_id: str, chain_id: str):
     return residue_map
 
 
-def _infer_molecular_dynamics_nlls(
+def infer_molecular_dynamics_nlls(
     ddg_data_dict: Dict,
     dataset: str,
     DEVICE: str,
     EPS: float,
     cavity_model_infer_net: CavityModel,
     *,
-    stride=40,
+    stride=400,
 ):
     """
     Infer negative log likelihoods for MD simulations of folded state, i.e. only wild type.
@@ -740,7 +740,7 @@ def _infer_molecular_dynamics_nlls(
     ddg_data_dict[dataset]["mt_nll_md"] = md_nlls_mt_given_wt
 
 
-def _add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str):
+def add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str):
     # MD + pdb statistics
     ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds"] = ddg_data_dict[dataset].apply(
         lambda row: row["mt_nll_md"].mean()

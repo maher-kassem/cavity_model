@@ -73,7 +73,7 @@ class ResidueEnvironment:
     @property
     def restype_index(self):
         return np.argmax(self.restype_onehot)
-    
+
     @property
     def chain_id(self):
         return self._chain_id
@@ -173,9 +173,7 @@ class ResidueEnvironmentsDataset(Dataset):
             for resi_i in range(N_residues):
                 selector = selector_prot_seq[resi_i]
                 selector_masked = selector[selector > -1]  # Remove Filler
-                coords_mask = (
-                    atom_coords_prot_seq[resi_i, :, 0] != -99.0
-                )  # Remove filler
+                coords_mask = atom_coords_prot_seq[resi_i, :, 0] != -99.0  # Remove filler
                 coords = atom_coords_prot_seq[resi_i][coords_mask]
                 atom_types = atom_types_flattened[selector_masked]
                 restype_onehot = restypes_onehots_prot_seq[resi_i]
@@ -203,7 +201,7 @@ class ResidueEnvironmentsDataset(Dataset):
         return res_env_objects
 
     def __repr__(self):
-        return (f"<ResidueEnvironmentsDataset with size {len(self)}.")
+        return f"<ResidueEnvironmentsDataset with size {len(self)}."
 
 
 class ToTensor:
@@ -234,15 +232,13 @@ class ToTensor:
     def __call__(self, sample: ResidueEnvironment):
         """Converts single ResidueEnvironment object into x_ and y_"""
 
-        sample_env = np.hstack(
-            [np.reshape(sample.atom_types, [-1, 1]), sample.xyz_coords]
-        )
+        sample_env = np.hstack([np.reshape(sample.atom_types, [-1, 1]), sample.xyz_coords])
 
         return {
             "x_": torch.tensor(sample_env, dtype=torch.float32).to(self.device),
-            "y_": torch.tensor(
-                np.array(sample.restype_onehot), dtype=torch.float32
-            ).to(self.device),
+            "y_": torch.tensor(np.array(sample.restype_onehot), dtype=torch.float32).to(
+                self.device
+            ),
         }
 
     def collate_cat(self, batch: List[ResidueEnvironment]):
@@ -258,9 +254,7 @@ class ToTensor:
         for i, b in enumerate(batch):
             n_atoms = b["x_"].shape[0]
             env_id_arr = torch.zeros(n_atoms, dtype=torch.float32).to(self.device) + i
-            env_id_batch.append(
-                torch.cat([torch.unsqueeze(env_id_arr, 1), b["x_"]], dim=1)
-            )
+            env_id_batch.append(torch.cat([torch.unsqueeze(env_id_arr, 1), b["x_"]], dim=1))
         data = torch.cat(env_id_batch, dim=0)
 
         return data, target
@@ -338,19 +332,15 @@ class CavityModel(torch.nn.Module):
     @property
     def lin_spacing(self):
         lin_spacing = np.linspace(
-            start=-self.grid_dim / 2 * self.bins_per_angstrom
-            + self.bins_per_angstrom / 2,
-            stop=self.grid_dim / 2 * self.bins_per_angstrom
-            - self.bins_per_angstrom / 2,
+            start=-self.grid_dim / 2 * self.bins_per_angstrom + self.bins_per_angstrom / 2,
+            stop=self.grid_dim / 2 * self.bins_per_angstrom - self.bins_per_angstrom / 2,
             num=self.grid_dim,
         )
         return lin_spacing
 
     def _model(self):
         self.xx, self.yy, self.zz = torch.tensor(
-            np.meshgrid(
-                self.lin_spacing, self.lin_spacing, self.lin_spacing, indexing="ij"
-            ),
+            np.meshgrid(self.lin_spacing, self.lin_spacing, self.lin_spacing, indexing="ij"),
             dtype=torch.float32,
         ).to(self.device)
 
@@ -435,9 +425,7 @@ class CavityModel(torch.nn.Module):
                 # Since column 0 of atom_type_j_data is sorted
                 # I can use a trick to detect the boundaries based
                 # on the change from one value to another.
-                change_mask_j = (
-                    atom_type_j_data[:, 0][:-1] != atom_type_j_data[:, 0][1:]
-                )
+                change_mask_j = atom_type_j_data[:, 0][:-1] != atom_type_j_data[:, 0][1:]
 
                 # Add begin and end indices
                 ranges_i = torch.cat(
@@ -459,7 +447,7 @@ class CavityModel(torch.nn.Module):
                         fields_torch[i, j, :, :, :] = fields
         return fields_torch
 
-    
+
 class DownstreamModel(torch.nn.Module):
     """
     Simple Downstream FC neural network with 1 hidden layer.
