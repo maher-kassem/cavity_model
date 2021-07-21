@@ -341,14 +341,32 @@ def augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
             row_cp["ddg"] = -1.0 * row_cp["ddg"]
             row_cp["ddg_pred_no_ds"] = -1.0 * row_cp["ddg_pred_no_ds"]
 
-            wt_idx, mt_idx, wt_nll, mt_nll, wt_nlf, mt_nlf = (
+            (
+                wt_idx,
+                mt_idx,
+                wt_nll,
+                mt_nll,
+                wt_nlf,
+                mt_nlf,
+                wt_nll_md,
+                fragment_nll_wt_given_mt,
+                fragment_nll_wt_given_wt,
+                fragment_nll_mt_given_mt,
+                fragment_nll_mt_given_wt,
+            ) = (
                 row_cp["mt_idx"],
                 row_cp["wt_idx"],
                 row_cp["mt_nll"],
                 row_cp["wt_nll"],
                 row_cp["mt_nlf"],
                 row_cp["wt_nlf"],
+                row_cp["mt_nll_md"],
+                row_cp["fragment_nll_mt_given_wt"],
+                row_cp["fragment_nll_mt_given_mt"],
+                row_cp["fragment_nll_wt_given_wt"],
+                row_cp["fragment_nll_wt_given_mt"],
             )
+
             (
                 row_cp["wt_idx"],
                 row_cp["mt_idx"],
@@ -356,7 +374,24 @@ def augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
                 row_cp["mt_nll"],
                 row_cp["wt_nlf"],
                 row_cp["mt_nlf"],
-            ) = (wt_idx, mt_idx, wt_nll, mt_nll, wt_nlf, mt_nlf)
+                row_cp["wt_nll_md"],
+                row_cp["fragment_nll_wt_given_mt"],
+                row_cp["fragment_nll_wt_given_wt"],
+                row_cp["fragment_nll_mt_given_mt"],
+                row_cp["fragment_nll_mt_given_wt"],
+            ) = (
+                wt_idx,
+                mt_idx,
+                wt_nll,
+                mt_nll,
+                wt_nlf,
+                mt_nlf,
+                wt_nll_md,
+                fragment_nll_wt_given_mt,
+                fragment_nll_wt_given_wt,
+                fragment_nll_mt_given_mt,
+                fragment_nll_mt_given_wt,
+            )
 
             rows_augmented.append(row_cp)
         ddg_data_df_augmented = ddg_data_df_augmented.append(rows_augmented)
@@ -365,10 +400,10 @@ def augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
     return ddg_data_dict_augmented
 
 
-def get_ddg_training_dataloaders(ddg_data_dict_augmented, BATCH_SIZE_DDG, SHUFFLE_DDG):
+def get_ddg_training_dataloaders(ddg_data_dict_augmented, BATCH_SIZE_DDG, SHUFFLE_DDG, transformer):
     ddg_dataloaders_train_dict = {}
     for key in ddg_data_dict_augmented.keys():
-        ddg_dataset_aug = DDGDataset(ddg_data_dict_augmented[key], transformer=DDGToTensor())
+        ddg_dataset_aug = DDGDataset(ddg_data_dict_augmented[key], transformer=transformer())
         ddg_dataloader_aug = DataLoader(
             ddg_dataset_aug,
             batch_size=BATCH_SIZE_DDG,
@@ -380,13 +415,15 @@ def get_ddg_training_dataloaders(ddg_data_dict_augmented, BATCH_SIZE_DDG, SHUFFL
     return ddg_dataloaders_train_dict
 
 
-def get_ddg_validation_dataloaders(ddg_data_dict, keys=["dms", "protein_g", "guerois"]):
+def get_ddg_validation_dataloaders(
+    ddg_data_dict, transformer, keys=["dms", "protein_g", "guerois"]
+):
     """
     Helper function that return validation set dataloaders for ddg data.
     """
     ddg_dataloaders_val_dict = {}
     for key in keys:
-        ddg_dataset = DDGDataset(ddg_data_dict[key], transformer=DDGToTensor())
+        ddg_dataset = DDGDataset(ddg_data_dict[key], transformer=transformer())
         ddg_dataloader = DataLoader(
             ddg_dataset,
             batch_size=len(ddg_dataset),  # Full dataset as batch size
@@ -638,7 +675,7 @@ def add_ddg_preds_with_unfolded_state(ddg_data_dict: Dict, dataset: str):
         lambda row: row["mt_nll"]
         - (row["fragment_nll_mt_given_wt"].mean() + row["fragment_nll_mt_given_mt"].mean()) / 2
         - row["wt_nll"]
-        + (row["fragment_nll_wt_given_wt"].mean() + row["fragment_nll_wt_given_mt"].mean() / 2),
+        + (row["fragment_nll_wt_given_wt"].mean() + row["fragment_nll_wt_given_mt"].mean()) / 2,
         axis=1,
     )
 
@@ -661,7 +698,7 @@ def infer_molecular_dynamics_nlls(
     EPS: float,
     cavity_model_infer_net: CavityModel,
     *,
-    stride=400,
+    stride: int = 400,
 ):
     """
     Infer negative log likelihoods for MD simulations of folded state, i.e. only wild type.
@@ -788,6 +825,6 @@ def add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str):
         lambda row: row["mt_nll_md"].mean()
         - (row["fragment_nll_mt_given_wt"].mean() + row["fragment_nll_mt_given_mt"].mean()) / 2
         - row["wt_nll_md"].mean()
-        + (row["fragment_nll_wt_given_wt"].mean() + row["fragment_nll_wt_given_mt"].mean() / 2),
+        + (row["fragment_nll_wt_given_wt"].mean() + row["fragment_nll_wt_given_mt"].mean()) / 2,
         axis=1,
     )

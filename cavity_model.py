@@ -538,3 +538,40 @@ class DDGToTensor:
         )
 
         return {"x_": x_, "y_": sample["ddg"]}
+
+
+class DDGToTensorPhaistosAndMD:
+    """
+    To-tensor transformer for ddG dataframe data using the Phaistos stats and MD stats.
+    """
+
+    def __call__(self, sample: pd.Series):
+        wt_onehot = np.zeros(20)
+        wt_onehot[sample["wt_idx"]] = 1.0
+        mt_onehot = np.zeros(20)
+        mt_onehot[sample["mt_idx"]] = 1.0
+
+        x_ = torch.cat(
+            [
+                torch.Tensor(wt_onehot),
+                torch.Tensor(mt_onehot),
+                torch.Tensor(
+                    [
+                        sample["mt_nll_md"].mean(),
+                        (
+                            sample["fragment_nll_mt_given_wt"].mean()
+                            + sample["fragment_nll_mt_given_mt"].mean()
+                        )
+                        / 2,
+                        sample["wt_nll_md"].mean(),
+                        (
+                            sample["fragment_nll_wt_given_wt"].mean()
+                            + sample["fragment_nll_wt_given_mt"].mean()
+                        )
+                        / 2,
+                    ]
+                ),
+            ]
+        )
+
+        return {"x_": x_, "y_": sample["ddg"]}
