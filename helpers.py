@@ -828,3 +828,71 @@ def add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str):
         + (row["fragment_nll_wt_given_wt"].mean() + row["fragment_nll_wt_given_mt"].mean()) / 2,
         axis=1,
     )
+
+
+def get_predictions_both_structures(ddg_data_dict: Dict):
+    # Rename columns so they specify if it is the direct or inverse direction
+    symmetric_direct_df = ddg_data_dict["symmetric_direct"]
+    symmetric_direct_df.columns = [
+        name + "_dir" if "_dir" not in name else name for name in symmetric_direct_df.columns
+    ]
+    symmetric_inverse_df = ddg_data_dict["symmetric_inverse"]
+    symmetric_inverse_df.columns = [
+        name + "_inv" if "_inv" not in name else name for name in symmetric_inverse_df.columns
+    ]
+
+    # Inner merge both dataframes
+    ddg_data_dict["symmetric_both"] = pd.merge(
+        symmetric_direct_df,
+        symmetric_inverse_df,
+        how="inner",
+        left_on="merge_column_dir",
+        right_on="merge_column_inv",
+    )
+
+    ddg_data_dict["symmetric_both"]["ddg_pred_no_ds_both_dir"] = ddg_data_dict[
+        "symmetric_both"
+    ].apply(lambda row: 0.5 * (row["ddg_pred_no_ds_dir"] - row["ddg_pred_no_ds_inv"]), axis=1)
+    ddg_data_dict["symmetric_both"]["ddg_pred_no_ds_both_inv"] = ddg_data_dict[
+        "symmetric_both"
+    ].apply(lambda row: 0.5 * (row["ddg_pred_no_ds_inv"] - row["ddg_pred_no_ds_dir"]), axis=1)
+
+
+def output_sequence_fragments_to_csv(ddg_data_dict: Dict):
+    # Add flanking sequence fragments for protein g
+    raw_pdbs = glob.glob("data/data_protein_g/pdbs_raw/*.pdb")
+    for raw_pdb in raw_pdbs:
+        add_flanking_seq_fragments(
+            ddg_data_dict,
+            "protein_g",
+            raw_pdb,
+        )
+
+    # Add flanking sequence fragments for guerois
+    raw_pdbs = glob.glob("data/data_guerois/pdbs_raw/*.pdb")
+    for raw_pdb in raw_pdbs:
+        add_flanking_seq_fragments(
+            ddg_data_dict,
+            "guerois",
+            raw_pdb,
+        )
+
+    # Add flanking sequence fragments for dms
+    raw_pdbs = glob.glob("data/data_dms/pdbs_raw/*.pdb")
+    for raw_pdb in raw_pdbs:
+        add_flanking_seq_fragments(
+            ddg_data_dict,
+            "dms",
+            raw_pdb,
+        )
+
+    # Output CSVs (So Wouter can simulate them)
+    ddg_data_dict["protein_g"][
+        ["pdbid", "variant", "left_flank", "right_flank", "wt_restype", "mt_restype"]
+    ].to_csv("data/data_protein_g/sequence_flanks_protein_g.csv")
+    ddg_data_dict["dms"][
+        ["pdbid", "variant", "left_flank", "right_flank", "wt_restype", "mt_restype"]
+    ].to_csv("data/data_dms/sequence_flanks_dms.csv")
+    ddg_data_dict["guerois"][
+        ["pdbid", "variant", "left_flank", "right_flank", "wt_restype", "mt_restype"]
+    ].to_csv("data/data_guerois/sequence_flanks_guerois.csv")

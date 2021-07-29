@@ -1,7 +1,7 @@
+from typing import Tuple
+
 import matplotlib.pyplot as plt
 import numpy as np
-
-from typing import Tuple
 from scipy.stats import pearsonr, spearmanr
 
 
@@ -39,7 +39,8 @@ def scatter_pred_vs_true(
 
     title = (
         title
-        + f"\nPearson's r {pearsonr(x_, y_)[0]:4.2f}, Spearman's r {spearmanr(x_,y_)[0]:4.2f}"
+        + f"\nPearson's r {pearsonr(x_, y_)[0]:4.2f}"
+        # + f"\nPearson's r {pearsonr(x_, y_)[0]:4.2f}, Spearman's r {spearmanr(x_,y_)[0]:4.2f}"
     )
 
     ax.set_title(title, fontsize=fontsize, y=title_gap)
@@ -73,7 +74,7 @@ def plot_validation_performance(fig_title, results_dict):
         tick.label.set_fontsize(fontsize)
     for tick in ax.yaxis.get_major_ticks():
         tick.label.set_fontsize(fontsize)
-    
+
     ax.legend(fontsize=fontsize)
     ax.set_title(fig_title, fontsize=fontsize, y=1.03)
     ax.set_ylim([0, 0.85])
