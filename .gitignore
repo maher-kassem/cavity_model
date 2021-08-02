@@ -3,17 +3,21 @@
 !/data/data_guerois/pdbs_raw/*.pdb
 !/data/data_dms/pdbs_raw/*.pdb
 !/simulation_scripts/rosetta/*.pdb
+
 *.npz
 !/data/pdb_frequencies.npz
+
 /reduce/
 /cavity_models/
 .ipynb_checkpoints/
 *.pyc
-simulate_seq_fragments/
-# /data/data_protein_g/molecular_dynamics/
-# /data/data_protein_g/simulate_seq_fragments*/
-/data/*/simulate_seq_fragments*/*
 *tar.gz
+
+/data/data_*/simulate_seq_fragments*/*
+/data/data_*/molecular_dynamics/*
+
+
 ### vscode ###
 .vscode/*
 *.code-workspace
+__pycache__/*
