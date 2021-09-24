@@ -699,6 +699,8 @@ def infer_molecular_dynamics_nlls(
     cavity_model_infer_net: CavityModel,
     *,
     stride: int = 400,
+    is_npt_ensemble=False,
+    use_residue_number_map=False,
 ):
     """
     Infer negative log likelihoods for MD simulations of folded state, i.e. only wild type.
@@ -711,9 +713,14 @@ def infer_molecular_dynamics_nlls(
     residue_numbering_maps = {}
     for i, row in ddg_data_dict[dataset].iterrows():
         print(i)
-        md_pdbs = glob.glob(
-            f"data/data_{dataset}/molecular_dynamics/pdbs_parsed/{row['pdbid']}_*npz"
-        )[::stride]
+        if not is_npt_ensemble:
+            md_pdbs = glob.glob(
+                f"data/data_{dataset}/molecular_dynamics/pdbs_parsed/{row['pdbid']}_*npz"
+            )[::stride]
+        else:
+            md_pdbs = glob.glob(
+                f"data/data_{dataset}/molecular_dynamics_npt/pdbs_parsed/{row['pdbid'].lower()}_*npz"
+            )[::stride]
 
         wt_restype = row["variant"][0]
         chain_id = row["chainid"]
@@ -734,9 +741,14 @@ def infer_molecular_dynamics_nlls(
             residue_number_map = _get_residue_map(dataset, pdb_id, chain_id)
             residue_numbering_maps[(pdb_id, chain_id)] = residue_number_map
 
+        # print(residue_number_map)
+
         # The MD pdb numbers need to be renumbered back to the original residue numbers
         md_pdb_residue_number = int(row["variant"][1:-1])
-        pdb_residue_number = int(residue_number_map[str(md_pdb_residue_number)])
+        if use_residue_number_map:
+            pdb_residue_number = int(residue_number_map[str(md_pdb_residue_number)])
+        else:
+            pdb_residue_number = int(md_pdb_residue_number)
 
         # Extract resenvs that match restype and residue number
         extracted_resenvs_md = []
@@ -779,10 +791,38 @@ def infer_molecular_dynamics_nlls(
 
 def add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str):
     # MD + pdb statistics
-    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds"] = ddg_data_dict[dataset].apply(
+    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_1"] = ddg_data_dict[dataset].apply(
         lambda row: row["mt_nll_md"].mean()
         - row["mt_nlf"]
-        - row["wt_nll_md"].mean()
+        - row["wt_nll_md"][0:1].mean()
+        + row["wt_nlf"],
+        axis=1,
+    )
+    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_2"] = ddg_data_dict[dataset].apply(
+        lambda row: row["mt_nll_md"].mean()
+        - row["mt_nlf"]
+        - row["wt_nll_md"][0:2].mean()
+        + row["wt_nlf"],
+        axis=1,
+    )
+    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_5"] = ddg_data_dict[dataset].apply(
+        lambda row: row["mt_nll_md"].mean()
+        - row["mt_nlf"]
+        - row["wt_nll_md"][0:5].mean()
+        + row["wt_nlf"],
+        axis=1,
+    )
+    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_20"] = ddg_data_dict[dataset].apply(
+        lambda row: row["mt_nll_md"].mean()
+        - row["mt_nlf"]
+        - row["wt_nll_md"][0:20].mean()
+        + row["wt_nlf"],
+        axis=1,
+    )
+    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_200"] = ddg_data_dict[dataset].apply(
+        lambda row: row["mt_nll_md"].mean()
+        - row["mt_nlf"]
+        - row["wt_nll_md"][0:200].mean()
         + row["wt_nlf"],
         axis=1,
     )
@@ -818,16 +858,16 @@ def add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str):
     #     axis=1,
     # )
 
-    # MD + phaistos WT and MT statistics
-    ddg_data_dict[dataset]["ddg_pred_md_phaistos_mt_and_wt_statistics_no_ds"] = ddg_data_dict[
-        dataset
-    ].apply(
-        lambda row: row["mt_nll_md"].mean()
-        - (row["fragment_nll_mt_given_wt"].mean() + row["fragment_nll_mt_given_mt"].mean()) / 2
-        - row["wt_nll_md"].mean()
-        + (row["fragment_nll_wt_given_wt"].mean() + row["fragment_nll_wt_given_mt"].mean()) / 2,
-        axis=1,
-    )
+    # # MD + phaistos WT and MT statistics
+    # ddg_data_dict[dataset]["ddg_pred_md_phaistos_mt_and_wt_statistics_no_ds"] = ddg_data_dict[
+    #     dataset
+    # ].apply(
+    #     lambda row: row["mt_nll_md"].mean()
+    #     - (row["fragment_nll_mt_given_wt"].mean() + row["fragment_nll_mt_given_mt"].mean()) / 2
+    #     - row["wt_nll_md"].mean()
+    #     + (row["fragment_nll_wt_given_wt"].mean() + row["fragment_nll_wt_given_mt"].mean()) / 2,
+    #     axis=1,
+    # )
 
 
 def get_predictions_both_structures(ddg_data_dict: Dict):
@@ -852,10 +892,19 @@ def get_predictions_both_structures(ddg_data_dict: Dict):
 
     ddg_data_dict["symmetric_both"]["ddg_pred_no_ds_both_dir"] = ddg_data_dict[
         "symmetric_both"
-    ].apply(lambda row: 0.5 * (row["ddg_pred_no_ds_dir"] - row["ddg_pred_no_ds_inv"]), axis=1)
+    ].apply(lambda row: row["wt_nll_inv"] - row["wt_nll_dir"], axis=1)
+
     ddg_data_dict["symmetric_both"]["ddg_pred_no_ds_both_inv"] = ddg_data_dict[
         "symmetric_both"
-    ].apply(lambda row: 0.5 * (row["ddg_pred_no_ds_inv"] - row["ddg_pred_no_ds_dir"]), axis=1)
+    ].apply(lambda row: row["wt_nll_dir"] - row["wt_nll_inv"], axis=1)
+
+    # ddg_data_dict["symmetric_both"]["ddg_pred_no_ds_both_dir"] = ddg_data_dict[
+    #     "symmetric_both"
+    # ].apply(lambda row: 0.5 * (row["ddg_pred_no_ds_dir"] - row["ddg_pred_no_ds_inv"]), axis=1)
+
+    # ddg_data_dict["symmetric_both"]["ddg_pred_no_ds_both_inv"] = ddg_data_dict[
+    #     "symmetric_both"
+    # ].apply(lambda row: 0.5 * (row["ddg_pred_no_ds_inv"] - row["ddg_pred_no_ds_dir"]), axis=1)
 
 
 def output_sequence_fragments_to_csv(ddg_data_dict: Dict):

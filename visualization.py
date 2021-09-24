@@ -53,8 +53,8 @@ def scatter_pred_vs_true(
 def plot_validation_performance(fig_title, results_dict):
     colors_dict = {
         "dms": "steelblue",
-        "protein_g": "firebrick",
-        "guerois": "forestgreen",
+        "protein_g": "forestgreen",
+        "guerois": "firebrick",
     }
 
     fontsize = 15
