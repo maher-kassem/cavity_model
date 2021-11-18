@@ -819,13 +819,20 @@ def add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str):
         + row["wt_nlf"],
         axis=1,
     )
-    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_200"] = ddg_data_dict[dataset].apply(
+    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_all"] = ddg_data_dict[dataset].apply(
         lambda row: row["mt_nll_md"].mean()
         - row["mt_nlf"]
-        - row["wt_nll_md"][0:200].mean()
+        - row["wt_nll_md"].mean()
         + row["wt_nlf"],
         axis=1,
     )
+    # ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_200"] = ddg_data_dict[dataset].apply(
+    #     lambda row: row["mt_nll_md"].mean()
+    #     - row["mt_nlf"]
+    #     - row["wt_nll_md"][0:200].mean()
+    #     + row["wt_nlf"],
+    #     axis=1,
+    # )
 
     # # MD + idp statistics
     # ddg_data_dict[dataset]["ddg_pred_md_idp_statistics_no_ds"] = ddg_data_dict[dataset].apply(

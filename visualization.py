@@ -37,9 +37,11 @@ def scatter_pred_vs_true(
     x_ = [val[0] for val in zip(x, y) if not np.isnan(val[1]) and not np.isnan(val[0])]
     y_ = [val[1] for val in zip(x, y) if not np.isnan(val[1]) and not np.isnan(val[0])]
 
+    pearsons_correlation = pearsonr(x_, y_)[0]
+
     title = (
         title
-        + f"\nPearson's r {pearsonr(x_, y_)[0]:4.2f}"
+        + f"\nPearson's r {pearsons_correlation:4.2f}"
         # + f"\nPearson's r {pearsonr(x_, y_)[0]:4.2f}, Spearman's r {spearmanr(x_,y_)[0]:4.2f}"
     )
 
@@ -47,7 +49,7 @@ def scatter_pred_vs_true(
 
     fig.tight_layout()
 
-    return fig, ax
+    return fig, ax, pearsons_correlation
 
 
 def plot_validation_performance(fig_title, results_dict):
