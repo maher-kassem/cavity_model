@@ -303,6 +303,12 @@ def populate_dfs_with_nlls_and_nlfs(
         df["wt_nlf"] = df.apply(lambda row: pdb_nlfs[row["wt_idx"]], axis=1)
         df["mt_nlf"] = df.apply(lambda row: pdb_nlfs[row["mt_idx"]], axis=1)
 
+        # Add vanilla predictions without taking into acount unfolded state
+        df["ddg_pred_ultra_vanilla"] = df.apply(
+            lambda row: row["mt_nll"] - row["wt_nll"],
+            axis=1,
+        )
+
         # Add ddG prediction (without downstream model)
         df["ddg_pred_no_ds"] = df.apply(
             lambda row: row["mt_nll"] - row["mt_nlf"] - row["wt_nll"] + row["wt_nlf"],
@@ -478,6 +484,8 @@ def train_downstream_and_evaluate(
                     pearsons_r_results_dict[train_key][val_key] = []
 
                 pearsons_r_results_dict[train_key][val_key].append(pearson_r)
+            if epoch % 10 == 0:
+                print(train_key, f"epoch {epoch:3d}")
     return pearsons_r_results_dict
 
 
@@ -790,35 +798,12 @@ def infer_molecular_dynamics_nlls(
 
 
 def add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str):
-    # MD + pdb statistics
-    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_1"] = ddg_data_dict[dataset].apply(
-        lambda row: row["mt_nll_md"].mean()
-        - row["mt_nlf"]
-        - row["wt_nll_md"][0:1].mean()
-        + row["wt_nlf"],
+    # MD only
+    ddg_data_dict[dataset]["ddg_pred_md_no_ds_all"] = ddg_data_dict[dataset].apply(
+        lambda row: row["mt_nll_md"].mean() - row["wt_nll_md"].mean(),
         axis=1,
     )
-    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_2"] = ddg_data_dict[dataset].apply(
-        lambda row: row["mt_nll_md"].mean()
-        - row["mt_nlf"]
-        - row["wt_nll_md"][0:2].mean()
-        + row["wt_nlf"],
-        axis=1,
-    )
-    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_5"] = ddg_data_dict[dataset].apply(
-        lambda row: row["mt_nll_md"].mean()
-        - row["mt_nlf"]
-        - row["wt_nll_md"][0:5].mean()
-        + row["wt_nlf"],
-        axis=1,
-    )
-    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_20"] = ddg_data_dict[dataset].apply(
-        lambda row: row["mt_nll_md"].mean()
-        - row["mt_nlf"]
-        - row["wt_nll_md"][0:20].mean()
-        + row["wt_nlf"],
-        axis=1,
-    )
+    # MD + PDB
     ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_all"] = ddg_data_dict[dataset].apply(
         lambda row: row["mt_nll_md"].mean()
         - row["mt_nlf"]
@@ -826,6 +811,62 @@ def add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str):
         + row["wt_nlf"],
         axis=1,
     )
+
+    # MD + IDP statistics
+    ddg_data_dict[dataset]["ddg_pred_md_idp_statistics_no_ds_all"] = ddg_data_dict[dataset].apply(
+        lambda row: row["mt_nll_md"].mean()
+        - row["mt_idp_nlf"]
+        - row["wt_nll_md"].mean()
+        + row["wt_idp_nlf"],
+        axis=1,
+    )
+
+    # MD + phaistos WT and MT statistics
+    ddg_data_dict[dataset]["ddg_pred_md_phaistos_mt_and_wt_statistics_no_ds"] = ddg_data_dict[
+        dataset
+    ].apply(
+        lambda row: row["mt_nll_md"].mean()
+        - (row["fragment_nll_mt_given_wt"].mean() + row["fragment_nll_mt_given_mt"].mean()) / 2
+        - row["wt_nll_md"].mean()
+        + (row["fragment_nll_wt_given_wt"].mean() + row["fragment_nll_wt_given_mt"].mean()) / 2,
+        axis=1,
+    )
+
+    # ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_1"] = ddg_data_dict[dataset].apply(
+    #     lambda row: row["mt_nll_md"].mean()
+    #     - row["mt_nlf"]
+    #     - row["wt_nll_md"][0:1].mean()
+    #     + row["wt_nlf"],
+    #     axis=1,
+    # )
+    # ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_2"] = ddg_data_dict[dataset].apply(
+    #     lambda row: row["mt_nll_md"].mean()
+    #     - row["mt_nlf"]
+    #     - row["wt_nll_md"][0:2].mean()
+    #     + row["wt_nlf"],
+    #     axis=1,
+    # )
+    # ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_5"] = ddg_data_dict[dataset].apply(
+    #     lambda row: row["mt_nll_md"].mean()
+    #     - row["mt_nlf"]
+    #     - row["wt_nll_md"][0:5].mean()
+    #     + row["wt_nlf"],
+    #     axis=1,
+    # )
+    # ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_20"] = ddg_data_dict[dataset].apply(
+    #     lambda row: row["mt_nll_md"].mean()
+    #     - row["mt_nlf"]
+    #     - row["wt_nll_md"][0:20].mean()
+    #     + row["wt_nlf"],
+    #     axis=1,
+    # )
+    # ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_all"] = ddg_data_dict[dataset].apply(
+    #     lambda row: row["mt_nll_md"].mean()
+    #     - row["mt_nlf"]
+    #     - row["wt_nll_md"].mean()
+    #     + row["wt_nlf"],
+    #     axis=1,
+    # )
     # ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_200"] = ddg_data_dict[dataset].apply(
     #     lambda row: row["mt_nll_md"].mean()
     #     - row["mt_nlf"]
@@ -879,11 +920,11 @@ def add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str):
 
 def get_predictions_both_structures(ddg_data_dict: Dict):
     # Rename columns so they specify if it is the direct or inverse direction
-    symmetric_direct_df = ddg_data_dict["symmetric_direct"]
+    symmetric_direct_df = ddg_data_dict["symmetric_direct"].copy(deep=True)
     symmetric_direct_df.columns = [
         name + "_dir" if "_dir" not in name else name for name in symmetric_direct_df.columns
     ]
-    symmetric_inverse_df = ddg_data_dict["symmetric_inverse"]
+    symmetric_inverse_df = ddg_data_dict["symmetric_inverse"].copy(deep=True)
     symmetric_inverse_df.columns = [
         name + "_inv" if "_inv" not in name else name for name in symmetric_inverse_df.columns
     ]
