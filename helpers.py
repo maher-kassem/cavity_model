@@ -119,6 +119,7 @@ def train_loop(
     cavity_model_net: CavityModel,
     loss_function: torch.nn.CrossEntropyLoss,
     optimizer: torch.optim.Adam,
+    prefix: str,
     EPOCHS: int,
     PATIENCE_CUTOFF: int,
 ):
@@ -157,7 +158,7 @@ def train_loop(
         )
 
         # Save model
-        model_path = f"cavity_models/model_epoch_{epoch:02d}.pt"
+        model_path = f"cavity_models/{prefix}_model_epoch_{epoch:02d}.pt"
         epoch_idx_to_model_path[epoch] = model_path
         torch.save(cavity_model_net.state_dict(), model_path)
 
@@ -227,7 +228,7 @@ def populate_dfs_with_resenvs(
 
 def populate_dfs_with_nlls_and_nlfs(
     ddg_data_dict: Dict[str, pd.DataFrame],
-    cavity_model_infer_net: CavityModel,
+    cavity_model_infer_nets: List[CavityModel],
     DEVICE: str,
     BATCH_SIZE: int,
     EPS: float,
@@ -280,50 +281,61 @@ def populate_dfs_with_nlls_and_nlfs(
             drop_last=False,
         )
 
-        # Infer NLLs
-        pred_nlls = []
-        for batch_x, _ in ddg_resenv_dataloader:
-            batch_pred_nlls = (
-                -torch.log(softmax(cavity_model_infer_net(batch_x), dim=-1) + EPS)
-                .detach()
-                .cpu()
-                .numpy()
+        for i, cavity_model_i in enumerate(cavity_model_infer_nets):
+            # Infer NLLs
+            pred_nlls = []
+            for batch_x, _ in ddg_resenv_dataloader:
+                batch_pred_nlls = (
+                    -torch.log(softmax(cavity_model_i(batch_x), dim=-1) + EPS)
+                    .detach()
+                    .cpu()
+                    .numpy()
+                )
+                pred_nlls.append(batch_pred_nlls)
+            pred_nlls_list = [row for row in np.vstack(pred_nlls)]
+
+            # Add NLLs to dataframe
+            df[f"nlls_{i}"] = pred_nlls_list
+
+            # Isolate WT and MT NLLs and add to datafra
+            df[f"wt_nll_{i}"] = df.apply(lambda row: row[f"nlls_{i}"][row["wt_idx"]], axis=1)
+            df[f"mt_nll_{i}"] = df.apply(lambda row: row[f"nlls_{i}"][row["mt_idx"]], axis=1)
+
+            # Add PDB database statistics negative log frequencies to df
+            df[f"wt_nlf_{i}"] = df.apply(lambda row: pdb_nlfs[row["wt_idx"]], axis=1)
+            df[f"mt_nlf_{i}"] = df.apply(lambda row: pdb_nlfs[row["mt_idx"]], axis=1)
+
+            # Add vanilla predictions without taking into acount unfolded state
+            df[f"ddg_pred_ultra_vanilla_{i}"] = df.apply(
+                lambda row: row[f"mt_nll_{i}"] - row[f"wt_nll_{i}"],
+                axis=1,
             )
-            pred_nlls.append(batch_pred_nlls)
-        pred_nlls_list = [row for row in np.vstack(pred_nlls)]
 
-        # Add NLLs to dataframe
-        df["nlls"] = pred_nlls_list
+            # Add ddG prediction (without downstream model)
+            df[f"ddg_pred_no_ds_{i}"] = df.apply(
+                lambda row: row[f"mt_nll_{i}"]
+                - row[f"mt_nlf_{i}"]
+                - row[f"wt_nll_{i}"]
+                + row[f"wt_nlf_{i}"],
+                axis=1,
+            )
 
-        # Isolate WT and MT NLLs and add to datafra
-        df["wt_nll"] = df.apply(lambda row: row["nlls"][row["wt_idx"]], axis=1)
-        df["mt_nll"] = df.apply(lambda row: row["nlls"][row["mt_idx"]], axis=1)
+            # Add IDP database statistics negative log frequencies to df
+            df[f"wt_idp_nlf_{i}"] = df.apply(
+                lambda row: idp_nlfs[index_to_one(row["wt_idx"])], axis=1
+            )
+            df[f"mt_idp_nlf_{i}"] = df.apply(
+                lambda row: idp_nlfs[index_to_one(row["mt_idx"])], axis=1
+            )
 
-        # Add PDB database statistics negative log frequencies to df
-        df["wt_nlf"] = df.apply(lambda row: pdb_nlfs[row["wt_idx"]], axis=1)
-        df["mt_nlf"] = df.apply(lambda row: pdb_nlfs[row["mt_idx"]], axis=1)
-
-        # Add vanilla predictions without taking into acount unfolded state
-        df["ddg_pred_ultra_vanilla"] = df.apply(
-            lambda row: row["mt_nll"] - row["wt_nll"],
-            axis=1,
-        )
-
-        # Add ddG prediction (without downstream model)
-        df["ddg_pred_no_ds"] = df.apply(
-            lambda row: row["mt_nll"] - row["mt_nlf"] - row["wt_nll"] + row["wt_nlf"],
-            axis=1,
-        )
-
-        # Add IDP database statistics negative log frequencies to df
-        df["wt_idp_nlf"] = df.apply(lambda row: idp_nlfs[index_to_one(row["wt_idx"])], axis=1)
-        df["mt_idp_nlf"] = df.apply(lambda row: idp_nlfs[index_to_one(row["mt_idx"])], axis=1)
-
-        # Add ddG prediction with IDP statistics (without downstream model)
-        df["ddg_pred_idp_no_ds"] = df.apply(
-            lambda row: row["mt_nll"] - row["mt_idp_nlf"] - row["wt_nll"] + row["wt_idp_nlf"],
-            axis=1,
-        )
+            # Add ddG prediction with IDP statistics (without downstream model)
+            df[f"ddg_pred_idp_no_ds_{i}"] = df.apply(
+                lambda row: row[f"mt_nll_{i}"]
+                - row[f"mt_idp_nlf_{i}"]
+                - row[f"wt_nll_{i}"]
+                + row[f"wt_idp_nlf_{i}"],
+                axis=1,
+            )
 
 
 def augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
@@ -576,7 +588,7 @@ def add_flanking_seq_fragments(ddg_data_dict: Dict, dataset: str, pdb_filename: 
 def infer_probabilities_for_center_residues(
     ddg_data_dict: Dict,
     dataset: str,
-    cavity_model_infer_net: CavityModel,
+    cavity_model_infer_nets: CavityModel,
     DEVICE: str,
     EPS: float,
     *,
@@ -588,104 +600,115 @@ def infer_probabilities_for_center_residues(
     fragments. This is used for modelling the unfolded state.
     """
 
-    # Lets get the probabilities for the center residues
-    fragments_nlls_wt = []
-    fragments_nlls_mt = []
-    for i, row in ddg_data_dict[dataset].iterrows():
-        pdb_id = row["pdbid"]
-        print(i, pdb_id)
+    for j, cavity_model_infer_net in enumerate(cavity_model_infer_nets):
+        # Lets get the probabilities for the center residues
+        fragments_nlls_wt = []
+        fragments_nlls_mt = []
+        for i, row in ddg_data_dict[dataset].iterrows():
+            pdb_id = row["pdbid"]
+            print(i, pdb_id)
+
+            if is_wt:
+                npz_wc = (
+                    f"data/data_{dataset}/simulate_seq_fragments_{dataset}/samples_{pdb_id}_"
+                    + row["variant"]
+                    + "/*.npz"
+                )
+            else:
+                npz_wc = (
+                    f"data/data_{dataset}/simulate_seq_fragments_{dataset}/samples_{pdb_id}_"
+                    + row["variant"]
+                    + "_mt"
+                    + "/*.npz"
+                )
+
+            # Create a dataset of all residue environments for this fragment
+            try:
+                fragment_dataset_wt = ResidueEnvironmentsDataset(
+                    sorted(glob.glob(npz_wc))[::stride], transformer=None
+                )
+            except ValueError as e:
+                print(f"Variant {row['variant']} failed with error: {e}.")
+                print(npz_wc)
+                fragments_nlls_wt.append(np.array([np.nan, np.nan, np.nan]))
+                fragments_nlls_mt.append(np.array([np.nan, np.nan, np.nan]))
+                continue
+
+            # Extract the ones with pdb_residue_number 0 (center)
+            res_envs_center_wt = [
+                res_env for res_env in fragment_dataset_wt if res_env.pdb_residue_number == 0
+            ]
+            # Create dataset and dataloder
+            dataset_center = ResidueEnvironmentsDataset(
+                res_envs_center_wt, transformer=ToTensor(DEVICE)
+            )
+            dataloader_center = DataLoader(
+                dataset_center,
+                batch_size=len(dataset_center),
+                shuffle=False,
+                drop_last=False,
+                collate_fn=ToTensor(DEVICE).collate_cat,
+            )
+            # Get X tensor
+            x_batch, _ = next(iter(dataloader_center))
+
+            # Predict
+            y_pred = (
+                -torch.log(softmax(cavity_model_infer_net(x_batch), dim=-1) + EPS)
+                .detach()
+                .cpu()
+                .numpy()
+            )
+            fragments_nlls_wt.append(y_pred[:, row["wt_idx"]])
+            fragments_nlls_mt.append(y_pred[:, row["mt_idx"]])
 
         if is_wt:
-            npz_wc = (
-                f"data/data_{dataset}/simulate_seq_fragments_{dataset}/samples_{pdb_id}_"
-                + row["variant"]
-                + "/*.npz"
-            )
+            ddg_data_dict[dataset][f"fragment_nll_wt_given_wt_{j}"] = fragments_nlls_wt
+            ddg_data_dict[dataset][f"fragment_nll_mt_given_wt_{j}"] = fragments_nlls_mt
         else:
-            npz_wc = (
-                f"data/data_{dataset}/simulate_seq_fragments_{dataset}/samples_{pdb_id}_"
-                + row["variant"]
-                + "_mt"
-                + "/*.npz"
-            )
-
-        # Create a dataset of all residue environments for this fragment
-        try:
-            fragment_dataset_wt = ResidueEnvironmentsDataset(
-                sorted(glob.glob(npz_wc))[::stride], transformer=None
-            )
-        except ValueError as e:
-            print(f"Variant {row['variant']} failed with error: {e}.")
-            print(npz_wc)
-            fragments_nlls_wt.append(np.array([np.nan, np.nan, np.nan]))
-            fragments_nlls_mt.append(np.array([np.nan, np.nan, np.nan]))
-            continue
-
-        # Extract the ones with pdb_residue_number 0 (center)
-        res_envs_center_wt = [
-            res_env for res_env in fragment_dataset_wt if res_env.pdb_residue_number == 0
-        ]
-        # Create dataset and dataloder
-        dataset_center = ResidueEnvironmentsDataset(
-            res_envs_center_wt, transformer=ToTensor(DEVICE)
-        )
-        dataloader_center = DataLoader(
-            dataset_center,
-            batch_size=len(dataset_center),
-            shuffle=False,
-            drop_last=False,
-            collate_fn=ToTensor(DEVICE).collate_cat,
-        )
-        # Get X tensor
-        x_batch, _ = next(iter(dataloader_center))
-
-        # Predict
-        y_pred = (
-            -torch.log(softmax(cavity_model_infer_net(x_batch), dim=-1) + EPS)
-            .detach()
-            .cpu()
-            .numpy()
-        )
-        fragments_nlls_wt.append(y_pred[:, row["wt_idx"]])
-        fragments_nlls_mt.append(y_pred[:, row["mt_idx"]])
-
-    if is_wt:
-        ddg_data_dict[dataset]["fragment_nll_wt_given_wt"] = fragments_nlls_wt
-        ddg_data_dict[dataset]["fragment_nll_mt_given_wt"] = fragments_nlls_mt
-    else:
-        ddg_data_dict[dataset]["fragment_nll_wt_given_mt"] = fragments_nlls_wt
-        ddg_data_dict[dataset]["fragment_nll_mt_given_mt"] = fragments_nlls_mt
+            ddg_data_dict[dataset][f"fragment_nll_wt_given_mt_{j}"] = fragments_nlls_wt
+            ddg_data_dict[dataset][f"fragment_nll_mt_given_mt_{j}"] = fragments_nlls_mt
 
 
-def add_ddg_preds_with_unfolded_state(ddg_data_dict: Dict, dataset: str):
+def add_ddg_preds_with_unfolded_state(ddg_data_dict: Dict, dataset: str, n_models: int):
     """
     Calculates ddg prediction using the first only the WT fragments, then the MT fragments,
     and then both. Note that is still without any down stream model
     """
+    for i in range(n_models):
+        ddg_data_dict[dataset][f"ddg_pred_wt_phaistos_no_ds_{i}"] = ddg_data_dict[dataset].apply(
+            lambda row: row[f"mt_nll_{i}"]
+            - row[f"fragment_nll_mt_given_wt_{i}"].mean()
+            - row[f"wt_nll_{i}"]
+            + row[f"fragment_nll_wt_given_wt_{i}"].mean(),
+            axis=1,
+        )
 
-    ddg_data_dict[dataset]["ddg_pred_wt_phaistos_no_ds"] = ddg_data_dict[dataset].apply(
-        lambda row: row["mt_nll"]
-        - row["fragment_nll_mt_given_wt"].mean()
-        - row["wt_nll"]
-        + row["fragment_nll_wt_given_wt"].mean(),
-        axis=1,
-    )
+        ddg_data_dict[dataset][f"ddg_pred_mt_phaistos_no_ds_{i}"] = ddg_data_dict[dataset].apply(
+            lambda row: row[f"mt_nll_{i}"]
+            - row[f"fragment_nll_mt_given_mt_{i}"].mean()
+            - row[f"wt_nll_{i}"]
+            + row[f"fragment_nll_wt_given_mt_{i}"].mean(),
+            axis=1,
+        )
 
-    ddg_data_dict[dataset]["ddg_pred_mt_phaistos_no_ds"] = ddg_data_dict[dataset].apply(
-        lambda row: row["mt_nll"]
-        - row["fragment_nll_mt_given_mt"].mean()
-        - row["wt_nll"]
-        + row["fragment_nll_wt_given_mt"].mean(),
-        axis=1,
-    )
-
-    ddg_data_dict[dataset]["ddg_pred_wt_and_mt_phaistos_no_ds"] = ddg_data_dict[dataset].apply(
-        lambda row: row["mt_nll"]
-        - (row["fragment_nll_mt_given_wt"].mean() + row["fragment_nll_mt_given_mt"].mean()) / 2
-        - row["wt_nll"]
-        + (row["fragment_nll_wt_given_wt"].mean() + row["fragment_nll_wt_given_mt"].mean()) / 2,
-        axis=1,
-    )
+        ddg_data_dict[dataset][f"ddg_pred_wt_and_mt_phaistos_no_ds_{i}"] = ddg_data_dict[
+            dataset
+        ].apply(
+            lambda row: row[f"mt_nll_{i}"]
+            - (
+                row[f"fragment_nll_mt_given_wt_{i}"].mean()
+                + row[f"fragment_nll_mt_given_mt_{i}"].mean()
+            )
+            / 2
+            - row[f"wt_nll_{i}"]
+            + (
+                row[f"fragment_nll_wt_given_wt_{i}"].mean()
+                + row[f"fragment_nll_wt_given_mt_{i}"].mean()
+            )
+            / 2,
+            axis=1,
+        )
 
 
 def _get_residue_map(dataset: str, pdb_id: str, chain_id: str):
@@ -704,7 +727,7 @@ def infer_molecular_dynamics_nlls(
     dataset: str,
     DEVICE: str,
     EPS: float,
-    cavity_model_infer_net: CavityModel,
+    cavity_model_infer_nets: List[CavityModel],
     *,
     stride: int = 400,
     is_npt_ensemble=False,
@@ -713,124 +736,138 @@ def infer_molecular_dynamics_nlls(
     """
     Infer negative log likelihoods for MD simulations of folded state, i.e. only wild type.
     """
-
-    md_nlls_wt_given_wt = []
-    md_nlls_mt_given_wt = []
-
     md_datasets = {}
-    residue_numbering_maps = {}
-    for i, row in ddg_data_dict[dataset].iterrows():
-        print(i)
-        if not is_npt_ensemble:
-            md_pdbs = glob.glob(
-                f"data/data_{dataset}/molecular_dynamics/pdbs_parsed/{row['pdbid']}_*npz"
-            )[::stride]
-        else:
-            md_pdbs = glob.glob(
-                f"data/data_{dataset}/molecular_dynamics_npt/pdbs_parsed/{row['pdbid'].lower()}_*npz"
-            )[::stride]
+    for j, cavity_model_infer_net in enumerate(cavity_model_infer_nets):
+        md_nlls_wt_given_wt = []
+        md_nlls_mt_given_wt = []
 
-        wt_restype = row["variant"][0]
-        chain_id = row["chainid"]
-        pdb_id = row["pdbid"]
+        residue_numbering_maps = {}
+        for i, row in ddg_data_dict[dataset].iterrows():
+            print(i)
+            if not is_npt_ensemble:
+                md_pdbs = glob.glob(
+                    f"data/data_{dataset}/molecular_dynamics/pdbs_parsed/{row['pdbid']}_*npz"
+                )[::stride]
+            else:
+                md_pdbs = glob.glob(
+                    f"data/data_{dataset}/molecular_dynamics_npt/pdbs_parsed/{row['pdbid'].lower()}_*npz"
+                )[::stride]
 
-        # Store whole parsed pdbs for quicker parsing
-        if pdb_id in md_datasets:
-            md_pdbs_dataset = md_datasets[pdb_id]
-        else:
-            md_pdbs_dataset = ResidueEnvironmentsDataset(sorted(md_pdbs), transformer=None)
-            md_datasets[pdb_id] = md_pdbs_dataset
+            wt_restype = row["variant"][0]
+            chain_id = row["chainid"]
+            pdb_id = row["pdbid"]
 
-        # Store residue numbering conversion maps. The maps convert from MD residue numbering
-        # to the orignal residue numbering
-        if (pdb_id, chain_id) in residue_numbering_maps:
-            residue_number_map = residue_numbering_maps[(pdb_id, chain_id)]
-        else:
-            residue_number_map = _get_residue_map(dataset, pdb_id, chain_id)
-            residue_numbering_maps[(pdb_id, chain_id)] = residue_number_map
+            # Store whole parsed pdbs for quicker parsing
+            if pdb_id in md_datasets:
+                md_pdbs_dataset = md_datasets[pdb_id]
+            else:
+                md_pdbs_dataset = ResidueEnvironmentsDataset(sorted(md_pdbs), transformer=None)
+                md_datasets[pdb_id] = md_pdbs_dataset
 
-        # print(residue_number_map)
+            # Store residue numbering conversion maps. The maps convert from MD residue numbering
+            # to the orignal residue numbering
+            if (pdb_id, chain_id) in residue_numbering_maps:
+                residue_number_map = residue_numbering_maps[(pdb_id, chain_id)]
+            else:
+                residue_number_map = _get_residue_map(dataset, pdb_id, chain_id)
+                residue_numbering_maps[(pdb_id, chain_id)] = residue_number_map
 
-        # The MD pdb numbers need to be renumbered back to the original residue numbers
-        md_pdb_residue_number = int(row["variant"][1:-1])
-        if use_residue_number_map:
-            pdb_residue_number = int(residue_number_map[str(md_pdb_residue_number)])
-        else:
-            pdb_residue_number = int(md_pdb_residue_number)
+            # print(residue_number_map)
 
-        # Extract resenvs that match restype and residue number
-        extracted_resenvs_md = []
-        for resenv in md_pdbs_dataset:
-            if (
-                wt_restype == index_to_one(resenv.restype_index)
-                and pdb_residue_number == resenv.pdb_residue_number
-            ):
-                extracted_resenvs_md.append(resenv)
+            # The MD pdb numbers need to be renumbered back to the original residue numbers
+            md_pdb_residue_number = int(row["variant"][1:-1])
+            if use_residue_number_map:
+                pdb_residue_number = int(residue_number_map[str(md_pdb_residue_number)])
+            else:
+                pdb_residue_number = int(md_pdb_residue_number)
 
-        if len(extracted_resenvs_md) == 0:
-            print(f"Did not find matchin resenvs for {row['variant']}")
+            # Extract resenvs that match restype and residue number
+            extracted_resenvs_md = []
+            for resenv in md_pdbs_dataset:
+                if (
+                    wt_restype == index_to_one(resenv.restype_index)
+                    and pdb_residue_number == resenv.pdb_residue_number
+                ):
+                    extracted_resenvs_md.append(resenv)
 
-        dataset_variant_md = ResidueEnvironmentsDataset(
-            extracted_resenvs_md, transformer=ToTensor(DEVICE)
+            if len(extracted_resenvs_md) == 0:
+                print(f"Did not find matchin resenvs for {row['variant']}")
+
+            dataset_variant_md = ResidueEnvironmentsDataset(
+                extracted_resenvs_md, transformer=ToTensor(DEVICE)
+            )
+            dataloader_variant_md = DataLoader(
+                dataset_variant_md,
+                batch_size=len(dataset_variant_md),
+                shuffle=False,
+                drop_last=False,
+                collate_fn=ToTensor(DEVICE).collate_cat,
+            )
+            # Get X tensor
+            x_batch, _ = next(iter(dataloader_variant_md))
+
+            # Predict
+            y_pred = (
+                -torch.log(softmax(cavity_model_infer_net(x_batch), dim=-1) + EPS)
+                .detach()
+                .cpu()
+                .numpy()
+            )
+
+            md_nlls_wt_given_wt.append(y_pred[:, row["wt_idx"]])
+            md_nlls_mt_given_wt.append(y_pred[:, row["mt_idx"]])
+        ddg_data_dict[dataset][f"wt_nll_md_{j}"] = md_nlls_wt_given_wt
+        ddg_data_dict[dataset][f"mt_nll_md_{j}"] = md_nlls_mt_given_wt
+
+
+def add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str, n_models: int):
+
+    for i in range(n_models):
+        # MD only
+        ddg_data_dict[dataset][f"ddg_pred_md_no_ds_all_{i}"] = ddg_data_dict[dataset].apply(
+            lambda row: row[f"mt_nll_md_{i}"].mean() - row[f"wt_nll_md_{i}"].mean(),
+            axis=1,
         )
-        dataloader_variant_md = DataLoader(
-            dataset_variant_md,
-            batch_size=len(dataset_variant_md),
-            shuffle=False,
-            drop_last=False,
-            collate_fn=ToTensor(DEVICE).collate_cat,
-        )
-        # Get X tensor
-        x_batch, _ = next(iter(dataloader_variant_md))
-
-        # Predict
-        y_pred = (
-            -torch.log(softmax(cavity_model_infer_net(x_batch), dim=-1) + EPS)
-            .detach()
-            .cpu()
-            .numpy()
+        # MD + PDB
+        ddg_data_dict[dataset][f"ddg_pred_md_pdb_statistics_no_ds_all_{i}"] = ddg_data_dict[
+            dataset
+        ].apply(
+            lambda row: row[f"mt_nll_md_{i}"].mean()
+            - row[f"mt_nlf_{i}"]
+            - row[f"wt_nll_md_{i}"].mean()
+            + row[f"wt_nlf_{i}"],
+            axis=1,
         )
 
-        md_nlls_wt_given_wt.append(y_pred[:, row["wt_idx"]])
-        md_nlls_mt_given_wt.append(y_pred[:, row["mt_idx"]])
-    ddg_data_dict[dataset]["wt_nll_md"] = md_nlls_wt_given_wt
-    ddg_data_dict[dataset]["mt_nll_md"] = md_nlls_mt_given_wt
+        # MD + IDP statistics
+        ddg_data_dict[dataset][f"ddg_pred_md_idp_statistics_no_ds_all_{i}"] = ddg_data_dict[
+            dataset
+        ].apply(
+            lambda row: row[f"mt_nll_md_{i}"].mean()
+            - row[f"mt_idp_nlf_{i}"]
+            - row[f"wt_nll_md_{i}"].mean()
+            + row[f"wt_idp_nlf_{i}"],
+            axis=1,
+        )
 
-
-def add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str):
-    # MD only
-    ddg_data_dict[dataset]["ddg_pred_md_no_ds_all"] = ddg_data_dict[dataset].apply(
-        lambda row: row["mt_nll_md"].mean() - row["wt_nll_md"].mean(),
-        axis=1,
-    )
-    # MD + PDB
-    ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_all"] = ddg_data_dict[dataset].apply(
-        lambda row: row["mt_nll_md"].mean()
-        - row["mt_nlf"]
-        - row["wt_nll_md"].mean()
-        + row["wt_nlf"],
-        axis=1,
-    )
-
-    # MD + IDP statistics
-    ddg_data_dict[dataset]["ddg_pred_md_idp_statistics_no_ds_all"] = ddg_data_dict[dataset].apply(
-        lambda row: row["mt_nll_md"].mean()
-        - row["mt_idp_nlf"]
-        - row["wt_nll_md"].mean()
-        + row["wt_idp_nlf"],
-        axis=1,
-    )
-
-    # MD + phaistos WT and MT statistics
-    ddg_data_dict[dataset]["ddg_pred_md_phaistos_mt_and_wt_statistics_no_ds"] = ddg_data_dict[
-        dataset
-    ].apply(
-        lambda row: row["mt_nll_md"].mean()
-        - (row["fragment_nll_mt_given_wt"].mean() + row["fragment_nll_mt_given_mt"].mean()) / 2
-        - row["wt_nll_md"].mean()
-        + (row["fragment_nll_wt_given_wt"].mean() + row["fragment_nll_wt_given_mt"].mean()) / 2,
-        axis=1,
-    )
+        # MD + phaistos WT and MT statistics
+        ddg_data_dict[dataset][
+            f"ddg_pred_md_phaistos_mt_and_wt_statistics_no_ds_{i}"
+        ] = ddg_data_dict[dataset].apply(
+            lambda row: row[f"mt_nll_md_{i}"].mean()
+            - (
+                row[f"fragment_nll_mt_given_wt_{i}"].mean()
+                + row[f"fragment_nll_mt_given_mt_{i}"].mean()
+            )
+            / 2
+            - row[f"wt_nll_md_{i}"].mean()
+            + (
+                row[f"fragment_nll_wt_given_wt_{i}"].mean()
+                + row[f"fragment_nll_wt_given_mt_{i}"].mean()
+            )
+            / 2,
+            axis=1,
+        )
 
     # ddg_data_dict[dataset]["ddg_pred_md_pdb_statistics_no_ds_1"] = ddg_data_dict[dataset].apply(
     #     lambda row: row["mt_nll_md"].mean()
@@ -918,7 +955,7 @@ def add_ddg_preds_with_md_simulations(ddg_data_dict: Dict, dataset: str):
     # )
 
 
-def get_predictions_both_structures(ddg_data_dict: Dict):
+def get_predictions_both_structures(ddg_data_dict: Dict, n_models: int):
     # Rename columns so they specify if it is the direct or inverse direction
     symmetric_direct_df = ddg_data_dict["symmetric_direct"].copy(deep=True)
     symmetric_direct_df.columns = [
@@ -938,13 +975,14 @@ def get_predictions_both_structures(ddg_data_dict: Dict):
         right_on="merge_column_inv",
     )
 
-    ddg_data_dict["symmetric_both"]["ddg_pred_no_ds_both_dir"] = ddg_data_dict[
-        "symmetric_both"
-    ].apply(lambda row: row["wt_nll_inv"] - row["wt_nll_dir"], axis=1)
+    for i in range(n_models):
+        ddg_data_dict["symmetric_both"][f"ddg_pred_no_ds_both_dir_{i}"] = ddg_data_dict[
+            "symmetric_both"
+        ].apply(lambda row: row[f"wt_nll_{i}_inv"] - row[f"wt_nll_{i}_dir"], axis=1)
 
-    ddg_data_dict["symmetric_both"]["ddg_pred_no_ds_both_inv"] = ddg_data_dict[
-        "symmetric_both"
-    ].apply(lambda row: row["wt_nll_dir"] - row["wt_nll_inv"], axis=1)
+        ddg_data_dict["symmetric_both"][f"ddg_pred_no_ds_both_inv_{i}"] = ddg_data_dict[
+            "symmetric_both"
+        ].apply(lambda row: row[f"wt_nll_{i}_dir"] - row[f"wt_nll_{i}_inv"], axis=1)
 
     # ddg_data_dict["symmetric_both"]["ddg_pred_no_ds_both_dir"] = ddg_data_dict[
     #     "symmetric_both"
