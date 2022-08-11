@@ -473,6 +473,22 @@ class DownstreamModel(torch.nn.Module):
         x = self.lin3(x)
         return x
 
+    
+class DownstreamModelSimple(torch.nn.Module):
+    """
+    Simple Downstream FC neural network with 1 hidden layer.
+    """
+
+    def __init__(self):
+        super().__init__()
+
+        # Model
+        self.lin1 = torch.nn.Sequential(torch.nn.Linear(1, 1))
+
+    def forward(self, x):
+        x = self.lin1(x)
+        return x
+
 
 class DDGDataset(Dataset):
     """
@@ -528,10 +544,10 @@ class DDGToTensor:
                 torch.Tensor(mt_onehot),
                 torch.Tensor(
                     [
-                        sample["wt_nll"],
-                        sample["mt_nll"],
-                        sample["wt_nlf"],
-                        sample["mt_nlf"],
+                        sample["wt_nll_0"],
+                        sample["mt_nll_0"],
+                        sample["wt_nlf_0"],
+                        sample["mt_nlf_0"],
                     ]
                 ),
             ]
@@ -557,21 +573,38 @@ class DDGToTensorPhaistosAndMD:
                 torch.Tensor(mt_onehot),
                 torch.Tensor(
                     [
-                        sample["mt_nll_md"].mean(),
+                        sample["mt_nll_md_0"].mean(),
                         (
-                            sample["fragment_nll_mt_given_wt"].mean()
-                            + sample["fragment_nll_mt_given_mt"].mean()
+                            sample["fragment_nll_mt_given_wt_0"].mean()
+                            + sample["fragment_nll_mt_given_mt_0"].mean()
                         )
                         / 2,
-                        sample["wt_nll_md"].mean(),
+                        sample["wt_nll_md_0"].mean(),
                         (
-                            sample["fragment_nll_wt_given_wt"].mean()
-                            + sample["fragment_nll_wt_given_mt"].mean()
+                            sample["fragment_nll_wt_given_wt_0"].mean()
+                            + sample["fragment_nll_wt_given_mt_0"].mean()
                         )
                         / 2,
                     ]
                 ),
             ]
         )
+
+        return {"x_": x_, "y_": sample["ddg"]}
+
+    
+class DDGToTensorPhaistosAndMDSimple:
+    """
+    
+    """
+
+    def __call__(self, sample: pd.Series):
+        
+        x_ = torch.tensor([
+            sample["mt_nll_md_0"].mean() - \
+            (sample["fragment_nll_mt_given_wt_0"].mean() + sample["fragment_nll_mt_given_mt_0"].mean()) / 2 - \
+            sample["wt_nll_md_0"].mean() + \
+            (sample["fragment_nll_wt_given_wt_0"].mean() + sample["fragment_nll_wt_given_mt_0"].mean()) / 2
+        ])
 
         return {"x_": x_, "y_": sample["ddg"]}

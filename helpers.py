@@ -16,6 +16,7 @@ from cavity_model import (
     DDGDataset,
     DDGToTensor,
     DownstreamModel,
+    DownstreamModelSimple,
     ResidueEnvironmentsDataset,
     ToTensor,
 )
@@ -357,7 +358,7 @@ def augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
                 row_cp["variant"][-1] + row_cp["variant"][1:-1] + row_cp["variant"][0]
             )
             row_cp["ddg"] = -1.0 * row_cp["ddg"]
-            row_cp["ddg_pred_no_ds"] = -1.0 * row_cp["ddg_pred_no_ds"]
+            row_cp["ddg_pred_no_ds_0"] = -1.0 * row_cp["ddg_pred_no_ds_0"]
 
             (
                 wt_idx,
@@ -374,29 +375,29 @@ def augment_with_reverse_mutation(ddg_data_dict: Dict[str, pd.DataFrame]):
             ) = (
                 row_cp["mt_idx"],
                 row_cp["wt_idx"],
-                row_cp["mt_nll"],
-                row_cp["wt_nll"],
-                row_cp["mt_nlf"],
-                row_cp["wt_nlf"],
-                row_cp["mt_nll_md"],
-                row_cp["fragment_nll_mt_given_wt"],
-                row_cp["fragment_nll_mt_given_mt"],
-                row_cp["fragment_nll_wt_given_wt"],
-                row_cp["fragment_nll_wt_given_mt"],
+                row_cp["mt_nll_0"],
+                row_cp["wt_nll_0"],
+                row_cp["mt_nlf_0"],
+                row_cp["wt_nlf_0"],
+                row_cp["mt_nll_md_0"],
+                row_cp["fragment_nll_mt_given_wt_0"],
+                row_cp["fragment_nll_mt_given_mt_0"],
+                row_cp["fragment_nll_wt_given_wt_0"],
+                row_cp["fragment_nll_wt_given_mt_0"],
             )
 
             (
                 row_cp["wt_idx"],
                 row_cp["mt_idx"],
-                row_cp["wt_nll"],
-                row_cp["mt_nll"],
-                row_cp["wt_nlf"],
-                row_cp["mt_nlf"],
-                row_cp["wt_nll_md"],
-                row_cp["fragment_nll_wt_given_mt"],
-                row_cp["fragment_nll_wt_given_wt"],
-                row_cp["fragment_nll_mt_given_mt"],
-                row_cp["fragment_nll_mt_given_wt"],
+                row_cp["wt_nll_0"],
+                row_cp["mt_nll_0"],
+                row_cp["wt_nlf_0"],
+                row_cp["mt_nlf_0"],
+                row_cp["wt_nll_md_0"],
+                row_cp["fragment_nll_wt_given_mt_0"],
+                row_cp["fragment_nll_wt_given_wt_0"],
+                row_cp["fragment_nll_mt_given_mt_0"],
+                row_cp["fragment_nll_mt_given_wt_0"],
             ) = (
                 wt_idx,
                 mt_idx,
@@ -452,6 +453,7 @@ def get_ddg_validation_dataloaders(
 
     return ddg_dataloaders_val_dict
 
+import sklearn.metrics
 
 def train_downstream_and_evaluate(
     ddg_dataloaders_train_dict,
@@ -461,12 +463,41 @@ def train_downstream_and_evaluate(
     EPOCHS_DDG,
 ):
     pearsons_r_results_dict = {}
+    msa_results_dict = {}
     for train_key in ["dms", "protein_g", "guerois"]:
         # Define model
         downstream_model_net = DownstreamModel().to(DEVICE)
         loss_ddg = torch.nn.MSELoss()
         optimizer_ddg = torch.optim.Adam(downstream_model_net.parameters(), lr=LEARNING_RATE_DDG)
         for epoch in range(EPOCHS_DDG):
+            
+            # First epoch evaluation
+            if epoch == 0:
+                for val_key in ["dms", "protein_g", "guerois"]:
+#                     if val_key == train_key:
+#                         continue
+
+                    val_batch = next(iter(ddg_dataloaders_val_dict[val_key]))
+                    val_batch_x, val_batch_y = (
+                        val_batch["x_"].to(DEVICE),
+                        val_batch["y_"],
+                    )
+                    val_batch_y_pred = (
+                        downstream_model_net(val_batch_x).reshape(-1).detach().cpu().numpy()
+                    )
+                    pearson_r = pearsonr(val_batch_y_pred, val_batch_y)[0]
+                    msa_all = sklearn.metrics.mean_absolute_error(val_batch_y_pred, val_batch_y)
+                    if train_key not in pearsons_r_results_dict:
+                        pearsons_r_results_dict[train_key] = {}
+                        msa_results_dict[train_key] = {}
+                    if val_key not in pearsons_r_results_dict[train_key]:
+                        pearsons_r_results_dict[train_key][val_key] = []
+                        msa_results_dict[train_key][val_key]= []
+ 
+                    pearsons_r_results_dict[train_key][val_key].append(pearson_r)
+                    msa_results_dict[train_key][val_key].append(msa_all)
+                
+            
             for batch in ddg_dataloaders_train_dict[train_key]:
                 x_batch, y_batch = batch["x_"].to(DEVICE), batch["y_"].to(DEVICE)
 
@@ -477,9 +508,10 @@ def train_downstream_and_evaluate(
                 loss_ddg_batch.backward()
                 optimizer_ddg.step()
 
+            # Evaluation
             for val_key in ["dms", "protein_g", "guerois"]:
-                if val_key == train_key:
-                    continue
+#                     if val_key == train_key:
+#                         continue
 
                 val_batch = next(iter(ddg_dataloaders_val_dict[val_key]))
                 val_batch_x, val_batch_y = (
@@ -490,15 +522,104 @@ def train_downstream_and_evaluate(
                     downstream_model_net(val_batch_x).reshape(-1).detach().cpu().numpy()
                 )
                 pearson_r = pearsonr(val_batch_y_pred, val_batch_y)[0]
+                msa_all = sklearn.metrics.mean_absolute_error(val_batch_y_pred, val_batch_y)
                 if train_key not in pearsons_r_results_dict:
                     pearsons_r_results_dict[train_key] = {}
+                    msa_results_dict[train_key] = {}
                 if val_key not in pearsons_r_results_dict[train_key]:
                     pearsons_r_results_dict[train_key][val_key] = []
+                    msa_results_dict[train_key][val_key]= []
 
                 pearsons_r_results_dict[train_key][val_key].append(pearson_r)
+                msa_results_dict[train_key][val_key].append(msa_all)
+
             if epoch % 10 == 0:
                 print(train_key, f"epoch {epoch:3d}")
-    return pearsons_r_results_dict
+    return pearsons_r_results_dict, msa_results_dict
+
+
+def train_downstream_and_evaluate_simple(
+    ddg_dataloaders_train_dict,
+    ddg_dataloaders_val_dict,
+    DEVICE,
+    LEARNING_RATE_DDG,
+    EPOCHS_DDG,
+):
+    pearsons_r_results_dict = {}
+    msa_results_dict = {}
+    for train_key in ["dms", "protein_g", "guerois"]:
+        # Define model
+        downstream_model_net = DownstreamModelSimple().to(DEVICE)
+        loss_ddg = torch.nn.MSELoss()
+        optimizer_ddg = torch.optim.Adam(downstream_model_net.parameters(), lr=LEARNING_RATE_DDG)
+        for epoch in range(EPOCHS_DDG):
+            
+            # First epoch evaluation
+            if epoch == 0:
+                for val_key in ["dms", "protein_g", "guerois"]:
+#                     if val_key == train_key:
+#                         continue
+
+                    val_batch = next(iter(ddg_dataloaders_val_dict[val_key]))
+                    val_batch_x, val_batch_y = (
+                        val_batch["x_"].to(DEVICE),
+                        val_batch["y_"],
+                    )
+                    val_batch_y_pred = (
+                        downstream_model_net(val_batch_x).reshape(-1).detach().cpu().numpy()
+                    )
+                    pearson_r = pearsonr(val_batch_y_pred, val_batch_y)[0]
+                    msa_all = sklearn.metrics.mean_absolute_error(val_batch_y_pred, val_batch_y)
+                    if train_key not in pearsons_r_results_dict:
+                        pearsons_r_results_dict[train_key] = {}
+                        msa_results_dict[train_key] = {}
+                    if val_key not in pearsons_r_results_dict[train_key]:
+                        pearsons_r_results_dict[train_key][val_key] = []
+                        msa_results_dict[train_key][val_key]= []
+ 
+                    pearsons_r_results_dict[train_key][val_key].append(pearson_r)
+                    msa_results_dict[train_key][val_key].append(msa_all)
+                
+            
+            for batch in ddg_dataloaders_train_dict[train_key]:
+                x_batch, y_batch = batch["x_"].to(DEVICE), batch["y_"].to(DEVICE)
+
+                downstream_model_net.train()
+                optimizer_ddg.zero_grad()
+                y_batch_pred = downstream_model_net(x_batch).squeeze()
+                loss_ddg_batch = loss_ddg(y_batch_pred, y_batch)
+                loss_ddg_batch.backward()
+                optimizer_ddg.step()
+
+            # Evaluation
+            for val_key in ["dms", "protein_g", "guerois"]:
+#                     if val_key == train_key:
+#                         continue
+
+                val_batch = next(iter(ddg_dataloaders_val_dict[val_key]))
+                val_batch_x, val_batch_y = (
+                    val_batch["x_"].to(DEVICE),
+                    val_batch["y_"],
+                )
+                val_batch_y_pred = (
+                    downstream_model_net(val_batch_x).reshape(-1).detach().cpu().numpy()
+                )
+                pearson_r = pearsonr(val_batch_y_pred, val_batch_y)[0]
+                msa_all = sklearn.metrics.mean_absolute_error(val_batch_y_pred, val_batch_y)
+                if train_key not in pearsons_r_results_dict:
+                    pearsons_r_results_dict[train_key] = {}
+                    msa_results_dict[train_key] = {}
+                if val_key not in pearsons_r_results_dict[train_key]:
+                    pearsons_r_results_dict[train_key][val_key] = []
+                    msa_results_dict[train_key][val_key]= []
+
+                pearsons_r_results_dict[train_key][val_key].append(pearson_r)
+                msa_results_dict[train_key][val_key].append(msa_all)
+
+            if epoch % 10 == 0:
+                print(train_key, f"epoch {epoch:3d}")
+    return pearsons_r_results_dict, msa_results_dict
+
 
 
 def _trim_left_flank(left_flank: str):
